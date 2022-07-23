@@ -3,6 +3,7 @@ autopep8
 numpy
 scipy
 h5py
-torch
-tqdm
+torch>=1.1
+tqdm>=4.36.0
 open3d>=0.15.1,<=0.15.2
+pycolmap>=0.2.0

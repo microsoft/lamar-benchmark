@@ -16,6 +16,8 @@ Requirements:
 - Python >= 3.8
 - [pycolmap](https://github.com/mihaidusmanu/pycolmap) installed from source (recommended) or via `pip install pycolmap`
 - [hloc](https://github.com/cvg/Hierarchical-Localization) and its dependencies
+- [raybender](https://github.com/cvg/raybender)
+- [pyceres](https://github.com/cvg/pyceres)
 - everything listed in `requirements.txt`, via `python -m pip install -r requirements.txt`
 
 Running the single-frame evaluation:
