@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 class FrustumFilterConf(BaseConf):
     do: bool = False
-    max_depth: float = 20.0
+    max_depth: float = 20.0  # meter
 
 
 class RadioFilterConf(BaseConf):
@@ -34,8 +34,8 @@ class RadioFilterConf(BaseConf):
 
 class PoseFilterConf(BaseConf):
     do: bool = False
-    max_rotation: float = 120.0
-    max_translation: float = 20.0
+    max_rotation: float = 120.0  # degree
+    max_translation: float = 20.0  # meter
     num_pairs_filter: Optional[int] = None
 
 
