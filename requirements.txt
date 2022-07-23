@@ -1,0 +1,8 @@
+pylint==2.5
+autopep8
+numpy
+scipy
+h5py
+torch
+tqdm
+open3d>=0.15.1,<=0.15.2

@@ -1,19 +1,53 @@
+# The LaMAR Benchmark
+# for Localization and Mapping in Augmented Reality
 
-# Contributing
+<img src="assets/logos.svg" width="40%"/>
 
-This project welcomes contributions and suggestions.  Most contributions require you to agree to a
-Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
-the rights to use your contribution. For details, visit https://cla.opensource.microsoft.com.
+This repository hosts the source code for our upcoming ECCV 2022 paper:
 
-When you submit a pull request, a CLA bot will automatically determine whether you need to provide
-a CLA and decorate the PR appropriately (e.g., status check, comment). Simply follow the instructions
-provided by the bot. You will only need to do this once across all repos using our CLA.
+- LaMAR: Benchmarking Localization and Mapping for Augmented Reality
+- Authors: Paul-Edouard Sarlin\*, Mihai Dusmanu\*, Johannes L. Schönberger, Pablo Speciale, Lukas Gruber, Viktor Larsson, Ondrej Miksik, and Marc Pollefeys
 
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
-For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
-contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+This pre-release contains the code required to load the data and run the evaluation. More details on the ground-truthing tools, data, and leaderboad will follow later.
 
-# Legal Notices
+## Usage
+
+Requirements:
+- Python >= 3.8
+- [pycolmap](https://github.com/mihaidusmanu/pycolmap) installed from source (recommended) or via `pip install pycolmap`
+- [hloc](https://github.com/cvg/Hierarchical-Localization) and its dependencies
+- everything listed in `requirements.txt`, via `python -m pip install -r requirements.txt`
+
+Running the single-frame evaluation:
+```
+python -m lamar_benchmark.run \
+	--scene SCENE --ref_id map --query_id query_phone \
+	--retrieval netvlad --feature sift --matcher mnn
+```
+
+By default, the script assumes that the data was placed in `./data/` and will write the intermediate dumps and final outputs to `./outputs/`.
+
+## BibTex citation
+
+Please consider citing our work if you use any code from this repo or ideas presented in the paper:
+
+```
+@inproceedings{sarlin2022lamar,
+  author    = {Paul-Edouard Sarlin and
+               Mihai Dusmanu and
+               Johannes L. Schönberger and
+               Pablo Speciale and
+               Lukas Gruber and
+               Viktor Larsson and
+               Ondrej Miksik and
+               Marc Pollefeys},
+  title     = {{LaMAR: Benchmarking Localization and Mapping for Augmented Reality}},
+  booktitle = {ECCV},
+  year      = {2022},
+}
+```
+
+## Legal Notices
 
 Microsoft and any contributors grant you a license to the Microsoft documentation and other content
 in this repository under the [Creative Commons Attribution 4.0 International Public License](https://creativecommons.org/licenses/by/4.0/legalcode),
