@@ -25,9 +25,8 @@
   <div align="center"></div>
 </p>
 <p align="center">
-  <a href="">
-    <img src="assets/teaser.svg" alt="Logo" width="80%">
-  </a>
+    <a href="https://lamar.ethz.ch/"><img src="assets/teaser.svg" alt="Logo" width="80%"></a>
+    <br /><em>LaMar includes multi-sensor streams recorded by AR devices along hundreds of unconstrained trajectories<br>captured over 2 years in 3 large indoor+outdoor locations.</em>
 </p>
 
 ##
