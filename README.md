@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center"><img src="assets/lamar.svg" width="60"><br>LaMAR<br>Benchmarking Localization and Mapping<br>for Augmented Reality</h1>
+  <h1 align="center"><img src="assets/lamar_white.svg" width="85"><br>LaMAR<br>Benchmarking Localization and Mapping<br>for Augmented Reality</h1>
   <p align="center">
     <a href="https://psarlin.com/">Paul-Edouard Sarlin*</a>
     ·
@@ -26,7 +26,7 @@
 </p>
 <p align="center">
     <a href="https://lamar.ethz.ch/"><img src="assets/teaser.svg" alt="Logo" width="80%"></a>
-    <br /><em>LaMar includes multi-sensor streams recorded by AR devices along hundreds of unconstrained trajectories<br>captured over 2 years in 3 large indoor+outdoor locations.</em>
+    <br /><em>LaMAR includes multi-sensor streams recorded by AR devices along hundreds of unconstrained trajectories<br>captured over 2 years in 3 large indoor+outdoor locations.</em>
 </p>
 
 ##
