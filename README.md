@@ -29,8 +29,8 @@
     <img src="assets/teaser.svg" alt="Logo" width="80%">
   </a>
 </p>
-##
 
+##
 
 This repository hosts the source code for LaMAR, a new benchmark for localization and mapping with AR devices in realistic conditions. We are still in the process of fully releasing the benchmark. Here is the release plan:
 
