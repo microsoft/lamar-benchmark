@@ -1,16 +1,46 @@
-# The LaMAR Benchmark
-# for Localization and Mapping in Augmented Reality
+<p align="center">
+  <h1 align="center"><img src="assets/lamar.svg" width="60"><br>LaMAR<br>Benchmarking Localization and Mapping<br>for Augmented Reality</h1>
+  <p align="center">
+    <a href="https://psarlin.com/">Paul-Edouard Sarlin*</a>
+    ·
+    <a href="https://dsmn.ml/">Mihai Dusmanu*</a>
+    <br>
+    <a href="https://demuc.de/">Johannes L. Schönberger</a>
+    ·
+    <a href="https://www.microsoft.com/en-us/research/people/paspecia/">Pablo Speciale</a>
+    ·
+    <a href="https://www.microsoft.com/en-us/research/people/lugruber/">Lukas Gruber</a>
+    ·
+    <a href="https://vlarsson.github.io/">Viktor Larsson</a>
+    ·
+    <a href="http://miksik.co.uk/">Ondrej Miksik</a>
+    ·
+    <a href="https://www.microsoft.com/en-us/research/people/mapoll/">Marc Pollefeys</a>
+  </p>
+<p align="center">
+    <img src="assets/logos.svg" alt="Logo" height="40">
+</p>
+  <h2 align="center">ECCV 2022</h2>
+  <h3 align="center"><a href="https://lamar.ethz.ch/">Project Page</a> | <a href="https://youtu.be/32XsRli2coo">Video</a></h3>
+  <div align="center"></div>
+</p>
+<p align="center">
+    <a href="https://lamar.ethz.ch/"><img src="assets/teaser.svg" alt="Logo" width="80%"></a>
+    <br /><em>LaMar includes multi-sensor streams recorded by AR devices along hundreds of unconstrained trajectories<br>captured over 2 years in 3 large indoor+outdoor locations.</em>
+</p>
 
-<img src="assets/logos.svg" width="40%"/>
+##
 
-This repository hosts the source code for our upcoming ECCV 2022 paper:
+This repository hosts the source code for LaMAR, a new benchmark for localization and mapping with AR devices in realistic conditions. We are still in the process of fully releasing the benchmark. Here is the release plan:
 
-- LaMAR: Benchmarking Localization and Mapping for Augmented Reality
-- Authors: Paul-Edouard Sarlin\*, Mihai Dusmanu\*, Johannes L. Schönberger, Pablo Speciale, Lukas Gruber, Viktor Larsson, Ondrej Miksik, and Marc Pollefeys
+- [x] Evaluation data: [apply here](https://lamar.ethz.ch/lamar/)
+- [x] Evaluation, baselines, data format: see below
+- [ ] Additional documentation
+- [ ] Ground truthing pipeline: to be released soon
+- [ ] Full raw data: to be released soon
+- [ ] Leaderboard and evaluation server
 
-This pre-release contains the code required to load the data and run the evaluation. More details on the ground-truthing tools, data, and leaderboad will follow later.
-
-## Usage
+## Running the evaluation
 
 Requirements:
 - Python >= 3.8
