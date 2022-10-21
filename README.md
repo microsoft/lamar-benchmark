@@ -37,7 +37,7 @@ This repository hosts the source code for LaMAR, a new benchmark for localizatio
 - [x] Evaluation, baselines, data format: see below
 - [ ] Additional documentation
 - [ ] Ground truthing pipeline: to be released soon
-- [ ] Full raw data: to be released soon
+- [ ] Full raw data
 - [ ] Leaderboard and evaluation server
 
 ## Running the evaluation
