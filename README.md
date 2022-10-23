@@ -1,21 +1,21 @@
 <p align="center">
-  <h1 align="center"><img src="assets/lamar_white.svg" width="85"><br>LaMAR<br>Benchmarking Localization and Mapping<br>for Augmented Reality</h1>
+  <h1 align="center"><img src="assets/lamar_white.svg" width="85"><br><ins>LaMAR</ins><br>Benchmarking Localization and Mapping<br>for Augmented Reality</h1>
   <p align="center">
-    <a href="https://psarlin.com/">Paul-Edouard Sarlin*</a>
+    <a href="https://psarlin.com/">Paul-Edouard&nbsp;Sarlin*</a>
     ·
-    <a href="https://dsmn.ml/">Mihai Dusmanu*</a>
+    <a href="https://dsmn.ml/">Mihai&nbsp;Dusmanu*</a>
     <br>
-    <a href="https://demuc.de/">Johannes L. Schönberger</a>
+    <a href="https://demuc.de/">Johannes&nbsp;L.&nbsp;Schönberger</a>
     ·
-    <a href="https://www.microsoft.com/en-us/research/people/paspecia/">Pablo Speciale</a>
+    <a href="https://www.microsoft.com/en-us/research/people/paspecia/">Pablo&nbsp;Speciale</a>
     ·
-    <a href="https://www.microsoft.com/en-us/research/people/lugruber/">Lukas Gruber</a>
+    <a href="https://www.microsoft.com/en-us/research/people/lugruber/">Lukas&nbsp;Gruber</a>
     ·
-    <a href="https://vlarsson.github.io/">Viktor Larsson</a>
+    <a href="https://vlarsson.github.io/">Viktor&nbsp;Larsson</a>
     ·
-    <a href="http://miksik.co.uk/">Ondrej Miksik</a>
+    <a href="http://miksik.co.uk/">Ondrej&nbsp;Miksik</a>
     ·
-    <a href="https://www.microsoft.com/en-us/research/people/mapoll/">Marc Pollefeys</a>
+    <a href="https://www.microsoft.com/en-us/research/people/mapoll/">Marc&nbsp;Pollefeys</a>
   </p>
 <p align="center">
     <img src="assets/logos.svg" alt="Logo" height="40">
@@ -26,7 +26,8 @@
 </p>
 <p align="center">
     <a href="https://lamar.ethz.ch/"><img src="assets/teaser.svg" alt="Logo" width="80%"></a>
-    <br /><em>LaMAR includes multi-sensor streams recorded by AR devices along hundreds of unconstrained trajectories<br>captured over 2 years in 3 large indoor+outdoor locations.</em>
+    <br>
+    <em>LaMAR includes multi-sensor streams recorded by AR devices along hundreds of unconstrained trajectories captured over 2&nbsp;years in 3&nbsp;large indoor+outdoor locations.</em>
 </p>
 
 ##
