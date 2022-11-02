@@ -1,26 +1,26 @@
 import logging
-
 import numpy as np
+from scantools.capture import Trajectories
 
 logger = logging.getLogger(__name__)
 
 
 def list_images_for_query_session(capture, session_id, query_keys):
-    # Here we assume that query sessions are rigs only or non-rigs only.
     session = capture.sessions[session_id]
     image_root = capture.sessions_path()
     image_prefix = capture.data_path(session_id).relative_to(image_root)
-    rigs = session.rigs is not None
     keys = []
     image_names = []
     for ts, sensor_id in query_keys:
-        if rigs:
+        if sensor_id in session.sensors:
+            keys.append((ts, sensor_id))
+            image_names.append(str(image_prefix / session.images[ts, sensor_id]))
+        elif sensor_id in session.rigs:
             for camera_id in session.rigs[sensor_id]:
                 keys.append((ts, camera_id))
                 image_names.append(str(image_prefix / session.images[ts, camera_id]))
         else:
-            keys.append((ts, sensor_id))
-            image_names.append(str(image_prefix / session.images[ts, sensor_id]))
+            raise ValueError(f'Sensor {sensor_id} for in sensors and rigs.')
     return keys, image_names, image_root
 
 
@@ -125,3 +125,21 @@ def avoid_duplicate_keys_in_chunks(session, query_list, query_chunks):
                 session.sensors[new_sensor_id] = session.sensors[sensor_id]
         final_query_chunks.append(final_query_chunk)
     return final_query_list, final_query_chunks
+
+
+def rig_list_to_image_list(rig_list, session):
+    image_list = []
+    for ts, rig_id in rig_list:
+        for cam_id in session.rigs[rig_id]:
+            if (ts, cam_id) in session.images:
+                image_list.append((ts, cam_id))
+    return image_list
+
+
+def rig_poses_to_image_poses(rig_list, T_rig2w, session):
+    T_c2w = Trajectories()
+    for ts, rig_id in rig_list:
+        for cam_id in session.rigs[rig_id]:
+            if (ts, cam_id) in session.images:
+                T_c2w[ts, cam_id] = T_rig2w[ts, rig_id] * session.rigs[rig_id, cam_id]
+    return T_c2w

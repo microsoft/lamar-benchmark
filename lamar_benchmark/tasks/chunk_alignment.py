@@ -7,7 +7,8 @@ from tqdm import tqdm
 from scantools.capture import Trajectories
 from scantools.proc.alignment.sequence import (
     logger as seq_logger, InitializerConf, PGOConf, BAConf,
-    optimize_pgo_with_init, optimize_sequence_pose_graph_gnc,
+    align_trajectories_with_voting,
+    optimize_sequence_pose_graph_gnc,
     optimize_sequence_bundle)
 
 from ..utils.localization import compute_pose_errors
@@ -92,13 +93,18 @@ class ChunkAlignment:
         self.query_rigs = capture.sessions[query_id].rigs
 
         config_pairs_loc = configs['pairs_loc']
+        pairs_loc = PairSelectionConf.from_dict(config_pairs_loc)
         config_pairs_reloc = {**configs['pairs_loc'], **configs['extra_pairs_reloc']}
+        # Deactivate radios for second reloc since we have stronger priors.
+        pairs_reloc = PairSelectionConf.from_dict(config_pairs_reloc)
+        pairs_reloc.filter_radio.do = False
         self.config = config = {
             **deepcopy(configs['chunks']),
             'features': extraction.config,
             'matches': configs['matching'],
-            'pairs': PairSelectionConf.from_dict(config_pairs_loc).to_dict(),
-            'pairs_reloc': PairSelectionConf.from_dict(config_pairs_reloc).to_dict(),
+            'matches_query': configs['matching_query'],
+            'pairs': pairs_loc.to_dict(),
+            'pairs_reloc': pairs_reloc.to_dict(),
             'mapping': self.mapping.config,
             'pose_estimation': configs['poses']
         }
@@ -158,13 +164,13 @@ class SingleImageChunkAlignment(ChunkAlignment):
             'min_num_inliers': 1
         },
         'pgo': {
-            'rel_noise_tracking': 0.04,
+            'rel_noise_tracking': 0.05,
             'cost_loc': ['Arctan', 10.0],
             'num_threads': -1,
         },
         'ba': {
             'noise_point3d': None,
-            'rel_noise_tracking': 0.04,
+            'rel_noise_tracking': 0.05,
             'num_threads': -1,
         },
     }
@@ -185,7 +191,7 @@ class SingleImageChunkAlignment(ChunkAlignment):
             self.config['pairs'], query_keys, override_workdir_root=self.paths.loc_root)
         matching = FeatureMatching(
             self.outputs, capture, self.query_id, self.ref_id,
-            self.config['matches'], pair_selection,
+            self.config['matches_query'], pair_selection,
             self.extraction, self.mapping.extraction)
 
         # First localization.
@@ -229,7 +235,7 @@ class SingleImageChunkAlignment(ChunkAlignment):
             override_workdir_root=self.paths.reloc_root)
         # Reuse matches.
         rematching = FeatureMatching(
-            self.paths.root, capture, self.query_id, self.ref_id, self.config['matches'],
+            self.paths.root, capture, self.query_id, self.ref_id, self.config['matches_query'],
             pair_selection_reloc, self.extraction, self.mapping.extraction)
         # Infer what pose estimation to use.
         pose_estimation2 = PoseEstimation(
@@ -292,12 +298,13 @@ def run_pgo_with_init(poses_tracking, poses_loc, conf_init, conf_pgo):
         for key in poses_tracking_.key_pairs():
             if key in poses_loc:
                 poses_loc_[key] = poses_loc[key]
-        poses_init_, poses_pgo_ = optimize_pgo_with_init(
-            poses_tracking_, poses_loc_, conf_init, conf_pgo)
+        poses_init_, _ = align_trajectories_with_voting(poses_tracking_, poses_loc_, conf_init)
         if poses_init_ is None:
             return
         for key in poses_init_.key_pairs():
             poses_init[key] = poses_init_[key]
+        poses_pgo_, _ = optimize_sequence_pose_graph_gnc(
+            poses_tracking_, poses_loc_, poses_init_, conf_pgo)
         for key in poses_pgo_.key_pairs():
             poses_pgo[key] = poses_pgo_[key]
     # Iterative is faster.
@@ -312,10 +319,14 @@ def run_pgo(poses_tracking, poses_loc, poses_init, conf_pgo):
         poses_init_ = Trajectories()
         poses_loc_ = Trajectories()
         for key in poses_tracking_.key_pairs():
+            if key not in poses_init:
+                logging.warning(
+                    'First PGO failed for (%d, %s). Skipping second PGO.', key[0], key[1])
+                return
             poses_init_[key] = poses_init[key]
             if key in poses_loc:
                 poses_loc_[key] = poses_loc[key]
-        poses_pgo_ = optimize_sequence_pose_graph_gnc(
+        poses_pgo_, _ = optimize_sequence_pose_graph_gnc(
             poses_tracking_, poses_loc_, poses_init_, conf_pgo)
         for key in poses_pgo_.key_pairs():
             poses_pgo[key] = poses_pgo_[key]
@@ -358,12 +369,17 @@ def run_ba(poses_tracking, poses_init, session, matches_2d3d, conf_ba):
         poses_tracking_ = poses_tracking[idx]
         poses_init_ = Trajectories()
         for key in poses_tracking_.key_pairs():
+            if key not in poses_init:
+                logging.warning('First PGO failed for (%d, %s). Skipping BA.', key[0], key[1])
+                return
             poses_init_[key] = poses_init[key]
         # No need for reference tracks since points are fixed.
-        poses_ba_ = optimize_sequence_bundle(
+        poses_ba_, _ = optimize_sequence_bundle(
             poses_tracking_, poses_init_, session,
-            matches_2d3d[idx], {}, conf_ba,
-            use_reference_tracks=False)
+            matches_2d3d[idx], None, conf_ba,
+            use_reference_tracks=False,
+            compute_stats=False,
+            compute_covariances=False)
         for key in poses_ba_.key_pairs():
             poses_ba[key] = poses_ba_[key]
     # Iterative is faster.

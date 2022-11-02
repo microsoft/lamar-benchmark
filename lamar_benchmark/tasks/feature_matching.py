@@ -42,13 +42,31 @@ class FeatureMatching:
                 },
             }
         },
-        'ratio_mnn': {
+        'ratio_mnn_0_9': {
+            'name': 'ratio_mnn',
+            'hloc': {
+                'model': {
+                    'name': 'nearest_neighbor',
+                    'do_mutual_check': True,
+                    'ratio_threshold': 0.9,
+                },
+            }
+        },
+        'ratio_mnn_0_8': {
             'name': 'ratio_mnn',
             'hloc': {
                 'model': {
                     'name': 'nearest_neighbor',
                     'do_mutual_check': True,
                     'ratio_threshold': 0.8,
+                },
+            }
+        },
+        'adalam': {
+            'name': 'adalam',
+            'hloc': {
+                'model': {
+                    'name': 'adalam'
                 },
             }
         }

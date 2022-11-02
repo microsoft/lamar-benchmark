@@ -1,6 +1,7 @@
 from pathlib import Path
 import logging
 from typing import List, Iterator, Optional
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -44,11 +45,77 @@ def write_csv(path: Path, table: Iterator[List[str]], columns: Optional[List[str
             data = ', '.join(row) + '\n'
             fid.write(data)
 
+
+try:
+    import PIL.Image
+    import cv2
+except ImportError:
+    logger.info('Optional dependency not installed: pillow')
+else:
+    def read_image(path: Path) -> np.ndarray:
+        return np.asarray(PIL.Image.open(path))
+
+    def write_image(path: Path, image: np.ndarray):
+        PIL.Image.fromarray(image).save(path)
+
+    def write_depth(path: Path, depth: np.ndarray):
+        depth = depth * DEPTH_SCALE
+        dtype = np.uint16
+        mask = (depth > np.iinfo(dtype).max) | (depth < 0)
+        depth[mask] = 0  # avoid overflow
+        im = PIL.Image.fromarray(depth.round().astype(dtype))
+        im.save(path)
+
+
+try:
+    import cv2
+except ImportError:
+    logger.info('Optional dependency not installed: opencv')
+else:
+    def read_depth(path: Path) -> np.ndarray:
+        # Much faster than PIL.Image for high-res images
+        depth = cv2.imread(str(path), cv2.IMREAD_ANYDEPTH) / DEPTH_SCALE
+        return depth
+
 try:
     import open3d as o3d
 except ImportError:
     logger.info('Optional dependency not installed: open3d')
 else:
+    def read_pointcloud(path: Path) -> o3d.geometry.PointCloud:
+        logger.info('Reading point cloud %s.', path.resolve())
+        return o3d.io.read_point_cloud(str(path))
+
     def read_mesh(path: Path) -> o3d.geometry.TriangleMesh:
         logger.info('Reading mesh %s.', path.resolve())
         return o3d.io.read_triangle_mesh(str(path))
+
+    def write_mesh(path: Path, mesh: o3d.geometry.TriangleMesh):
+        logger.info('Writing mesh to %s.', path.resolve())
+        o3d.io.write_triangle_mesh(
+            str(path), mesh, compressed=True, print_progress=True)
+
+try:
+    import plyfile
+except ImportError:
+    logger.info('Optional dependency not installed: plyfile')
+else:
+    def write_pointcloud(path: Path, pcd: o3d.geometry.PointCloud,
+                         write_normals: bool = True, xyz_dtype: float = 'float32'):
+        logger.info('Writing point cloud to %s.', path.resolve())
+        assert pcd.has_points()
+        write_normals = write_normals and pcd.has_normals()
+        dtypes = [('x', xyz_dtype), ('y', xyz_dtype), ('z', xyz_dtype)]
+        if write_normals:
+            dtypes.extend([('nx', xyz_dtype), ('ny', xyz_dtype), ('nz', xyz_dtype)])
+        if pcd.has_colors():
+            dtypes.extend([('red', 'u1'), ('green', 'u1'), ('blue', 'u1')])
+        data = np.empty(len(pcd.points), dtype=dtypes)
+        data['x'], data['y'], data['z'] = np.asarray(pcd.points).T
+        if write_normals:
+            data['nx'], data['ny'], data['nz'] = np.asarray(pcd.normals).T
+        if pcd.has_colors():
+            colors = (np.asarray(pcd.colors)*255).astype(np.uint8)
+            data['red'], data['green'], data['blue'] = colors.T
+        with open(str(path), mode='wb') as f:
+            plyfile.PlyData([plyfile.PlyElement.describe(data, 'vertex')]).write(f)

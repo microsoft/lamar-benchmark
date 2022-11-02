@@ -77,7 +77,11 @@ class FeatureExtraction:
             'name': 'sift',
             'hloc': {
                 'model': {
-                    'name': 'dog'
+                    'name': 'dog',
+                    'options': {
+                        'first_octave': -1,
+                        'upright': True
+                    }
                 },
                 'preprocessing': {
                     'grayscale': True,
@@ -90,7 +94,11 @@ class FeatureExtraction:
             'hloc': {
                 'model': {
                     'name': 'dog',
-                    'descriptor': 'sosnet'
+                    'descriptor': 'sosnet',
+                    'options': {
+                        'first_octave': -1,
+                        'upright': True
+                    }
                 },
                 'preprocessing': {
                     'grayscale': True,

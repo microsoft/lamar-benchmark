@@ -3,6 +3,9 @@ from functools import cached_property
 import numpy as np
 
 
+MIN_SIGNAL_STRENGTH_DBM = -127
+
+
 class RadioDescriptor:
     def __init__(self):
         self.descriptor = {}
@@ -22,7 +25,14 @@ class RadioDescriptor:
     def average(self):
         for radio_id in self.descriptor:
             self.descriptor[radio_id] = np.mean(self.descriptor[radio_id])
-
+    
+    def convert_to_numpy(self, radio_id_to_idx):
+        vect = np.full(len(radio_id_to_idx), MIN_SIGNAL_STRENGTH_DBM)
+        for radio_id, rssi_dbm in self.descriptor.items():
+            if radio_id not in radio_id_to_idx:
+                continue
+            vect[radio_id_to_idx[radio_id]] = rssi_dbm
+        return vect
 
 class RadioMap:
     def __init__(self, corner, grid_size=1):
@@ -72,6 +82,30 @@ class RadioMap:
         # Average signal strengths.
         for bin_idx in self.radio_map:
             self.radio_map[bin_idx].average()
+        # Convert to numpy.
+        self.convert_to_numpy()
+        # Remove old data.
+        del self.radio_map
+        del self.radio_observations
+        del self.bin_idx_to_scankeys
+        del self.imkey_to_bin_idx
+    
+    def convert_to_numpy(self):
+        bin_indices = sorted(self.radio_map.keys())
+        num_bins = len(bin_indices)
+        self.idx_to_bin_idx = {
+            idx: bidx for idx, bidx in enumerate(bin_indices)
+        }
+        radio_ids = sorted(self.radio_observations.keys())
+        num_radios = len(radio_ids)
+        self.radio_id_to_idx = {
+            rid: idx for idx, rid in enumerate(radio_ids)
+        }
+        self.matrix = np.empty((num_bins, num_radios))
+        for idx in range(num_bins):
+            self.matrix[idx] = (
+                self.radio_map[bin_indices[idx]].convert_to_numpy(
+                    self.radio_id_to_idx))
 
 
 def recover_measurements_for_timestamp(query_ts, session_radio, sensor_id,
@@ -164,51 +198,39 @@ def build_query_descriptor(imkey, session, max_delay_us=10_000_000):
     return descriptor
 
 
-def radio_descriptor_distance(descriptor_q, descriptor_ref, min_signal_strength=-127):
-    if len(descriptor_q.radio_ids) == 0:
-        return np.inf
-    score = 0
-    for signal_id in descriptor_q.radio_ids:
-        if signal_id not in descriptor_ref.radio_ids:
-            score += (min_signal_strength - descriptor_q.strength(signal_id)) ** 2
-        else:
-            score += (descriptor_ref.strength(signal_id) - descriptor_q.strength(signal_id)) ** 2
-    return np.sqrt(score)
-
-
 def retrieve_relevant_map_images(descriptor, radio_map, num_images=250):
     # Example usage:
     # radio_map = build_radio_map(session_ref)
     # descriptor_q = build_query_descriptor(imkey, session_q)
     # images, dists = retrieve_relevant_map_images(descriptor_q, radio_map)
 
-    # Shortlist of bins with common signals with query.
-    bin_idx_shortlist = set()
-    for radio_id in descriptor.radio_ids:
-        if radio_id not in radio_map.radio_observations:
-            continue
-        for bin_idx in radio_map.radio_observations[radio_id]:
-            bin_idx_shortlist.add(bin_idx)
-
-    # Compute distances w.r.t. shortlisted bins.
-    distances = []
-    for bin_idx in bin_idx_shortlist:
-        distances.append(
-            (radio_descriptor_distance(descriptor, radio_map.radio_map[bin_idx]), bin_idx))
+    vect = descriptor.convert_to_numpy(radio_map.radio_id_to_idx)
+    valid_coords = np.where(vect > MIN_SIGNAL_STRENGTH_DBM)[0]
+    if len(valid_coords) == 0:
+        return [], []
+    distances = np.linalg.norm(
+        vect[valid_coords][np.newaxis] - radio_map.matrix[:, valid_coords],
+        axis=1)
+    max_distance = np.linalg.norm(
+        np.full(len(valid_coords), MIN_SIGNAL_STRENGTH_DBM) - vect[valid_coords])
+    distances = [(dist, idx) for idx, dist in enumerate(distances)]
 
     # Sort distances and build final retrieval list.
     distances = sorted(distances)
     images = []
     dists = []
-    bins = []
     last_distance = np.inf
-    for distance, bin_idx in distances:
-        bins.append(bin_idx)
-        if distance > last_distance + 1e-6:
+    for distance, idx in distances:
+        if distance > max_distance - 1e-6:
+            # Don't retrieve images with no radio overlap.
             break
-        for imkey in radio_map.bin_idx_to_imkeys[bin_idx]:
-            images.append(imkey)
-            dists.append(distance)
+        bin_idx = radio_map.idx_to_bin_idx[idx]
+        if distance > last_distance + 1e-6:
+            # Stop retrieving once we surpasses the last distance.
+            break
+        imkeys = radio_map.bin_idx_to_imkeys[bin_idx]
+        images.extend(imkeys)
+        dists.extend([distance] * len(imkeys))
         if len(images) > num_images:
             last_distance = distance
 

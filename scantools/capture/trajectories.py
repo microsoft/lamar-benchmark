@@ -2,15 +2,16 @@
 # Modified by Paul-Edouard Sarlin (ETH Zurich)
 
 from pathlib import Path
-from typing import Union, Dict, List, Set, Tuple
+from typing import Union, Dict, List, Set
 
 from ..utils.io import read_csv, write_csv
 from .pose import Pose
+from .misc import KeyType
 
 
 class Trajectories(Dict[int, Dict[str, Pose]], dict):
     def __setitem__(self,
-                    key: Union[int, Tuple[int, str]],
+                    key: Union[int, KeyType],
                     value: Union[Dict[str, Pose], Pose]):
         # enforce type checking
         if isinstance(key, tuple):
@@ -30,7 +31,7 @@ class Trajectories(Dict[int, Dict[str, Pose]], dict):
         else:
             raise TypeError('key must be either int or Tuple[int, str]')
 
-    def __getitem__(self, key: Union[int, Tuple[int, str]]) -> Union[Dict[str, Pose], Pose]:
+    def __getitem__(self, key: Union[int, KeyType]) -> Union[Dict[str, Pose], Pose]:
         if isinstance(key, tuple):  # pylint: disable=no-else-return
             timestamp, device_id = key
             return super().__getitem__(timestamp)[device_id]
@@ -39,7 +40,7 @@ class Trajectories(Dict[int, Dict[str, Pose]], dict):
         else:
             raise TypeError('key must be either int or Tuple[int, str]')
 
-    def __delitem__(self, key: Union[int, Tuple[int, str]]):
+    def __delitem__(self, key: Union[int, KeyType]):
         if isinstance(key, tuple):
             timestamp, device_id = key
             super().__getitem__(timestamp).__delitem__(device_id)
@@ -50,7 +51,7 @@ class Trajectories(Dict[int, Dict[str, Pose]], dict):
         else:
             raise TypeError('key must be either int or Tuple[int, str]')
 
-    def key_pairs(self) -> List[Tuple[int, str]]:
+    def key_pairs(self) -> List[KeyType]:
         return [
             (timestamp, device_id)
             for timestamp, devices in self.items()
@@ -88,7 +89,7 @@ class Trajectories(Dict[int, Dict[str, Pose]], dict):
                  for ts, device_id in self.key_pairs())
         write_csv(path, table, columns=columns)
 
-    def __contains__(self, key: Union[int, Tuple[int, str]]):
+    def __contains__(self, key: Union[int, KeyType]):
         if isinstance(key, tuple):  # pylint: disable=no-else-return
             timestamp, device_id = key
             return super().__contains__(timestamp) and self[timestamp].__contains__(device_id)

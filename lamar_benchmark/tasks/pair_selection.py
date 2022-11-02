@@ -4,8 +4,6 @@ from collections import defaultdict
 import dataclasses
 import numpy as np
 
-from hloc.pairs_from_retrieval import pairs_from_score_matrix
-
 from scantools.utils.configuration import BaseConf
 
 from .feature_extraction import RetrievalFeatureExtraction
@@ -13,9 +11,8 @@ from ..utils.capture import list_images_for_session
 from ..utils.misc import same_configs, write_config
 from ..utils.retrieval import (
     FrustumFilterConf, RadioFilterConf, PoseFilterConf,
-    compute_overlap_pairs, compute_similarity_matrix,
-    filter_by_frustum, filter_by_pose, filter_by_radio,
-    fuse_similarities)
+    compute_overlap_pairs, fused_retrieval,
+    filter_by_frustum, filter_by_pose, filter_by_radio)
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +29,7 @@ class PairSelectionConf(BaseConf):
     def __post_init__(self):
         self.name = self.method_name()
         if self.filter_radio.do:
-            assert self.filter_radio.num_pairs_filter is not None
+            assert self.filter_radio.frac_pairs_filter is not None
 
     def method_name(self):
         name = self.method['name']
@@ -48,7 +45,7 @@ class PairSelectionConf(BaseConf):
             if self.filter_pose.num_pairs_filter is not None:
                 name += f'-{self.filter_pose.num_pairs_filter}'
         if self.filter_radio.do:
-            name += f'_radio-{self.filter_radio.window_us}-{self.filter_radio.num_pairs_filter}'
+            name += f'_radio-{self.filter_radio.window_us}-{self.filter_radio.frac_pairs_filter}'
         return name
 
 
@@ -136,14 +133,9 @@ class PairSelection:
                 discard, capture.proc_path(self.ref_id), config)
         else:  # retrieval
             logger.info('Computing pairs from visual similarity.')
-            do_fusion = config.method['name'] == 'fusion'
-            sim = []
-            for m in config.method['retrieval'] if do_fusion else [config.method]:
-                sim.append(compute_similarity_matrix(
-                    self.paths.root, capture, self.query_id, self.ref_id, m,
-                    names_q, names_r, self.query_keys))
-            sim = fuse_similarities(sim) if do_fusion else sim[0]
-            pairs_ij = pairs_from_score_matrix(sim, discard, config.num_pairs)
+            pairs_ij = fused_retrieval(
+                self.paths.root, capture, self.query_id, self.ref_id, config,
+                names_q, names_r, self.query_keys, discard)
 
         if len(pairs_ij) == 0:
             raise ValueError('No pair found!')

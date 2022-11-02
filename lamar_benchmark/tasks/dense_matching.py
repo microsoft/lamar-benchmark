@@ -32,12 +32,12 @@ class ImagePairDataset(torch.utils.data.Dataset):
         self.conf = conf = SimpleNamespace(**conf)
         self.pairs = pairs
 
-    def preprocess(self, image: np.ndarray):
+    def preprocess(self, image: np.ndarray, resize_max: int = None):
         image = image.astype(np.float32, copy=False)
         size = image.shape[:2][::-1]
         scale = np.array([1.0, 1.0])
         if self.conf.resize_max:
-            scale = self.conf.resize_max / max(size)
+            scale = min(self.conf.resize_max, resize_max or np.inf) / max(size)
             if scale < 1.0:
                 size_new = tuple(int(round(x*scale)) for x in size)
                 image = resize_image(image, size_new, 'cv2_area')
@@ -57,8 +57,9 @@ class ImagePairDataset(torch.utils.data.Dataset):
         name0, name1 = self.pairs[idx]
         image0 = read_image(self.image_dir / name0, self.conf.grayscale)
         image1 = read_image(self.image_dir / name1, self.conf.grayscale)
-        image0, scale0 = self.preprocess(image0)
-        image1, scale1 = self.preprocess(image1)
+        max_size = max(image0.shape[:2] + image1.shape[:2])
+        image0, scale0 = self.preprocess(image0, max_size)
+        image1, scale1 = self.preprocess(image1, max_size)
         return image0, image1, scale0, scale1, names_to_pair(name0, name1)
 
 
@@ -72,10 +73,10 @@ class DenseMatching:
     methods = {
         'loftr': {
             'name': 'loftr',
-            'max_num_matches': 2048,
+            'max_num_matches': 4096,
             'pretrained': 'outdoor',
             'grayscale': True,
-            'resize_max': 640,
+            'resize_max': 1024,
         },
     }
 

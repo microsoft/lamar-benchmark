@@ -2,7 +2,7 @@ import logging
 
 formatter = logging.Formatter(
     fmt='[%(asctime)s %(name)s %(levelname)s] %(message)s',
-    datefmt='%m/%d/%Y %H:%M:%S')
+    datefmt='%Y/%m/%d %H:%M:%S')
 handler = logging.StreamHandler()
 handler.setFormatter(formatter)
 handler.setLevel(logging.INFO)
