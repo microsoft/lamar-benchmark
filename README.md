@@ -1,21 +1,21 @@
 <p align="center">
-  <h1 align="center"><img src="assets/lamar_white.svg" width="85"><br>LaMAR<br>Benchmarking Localization and Mapping<br>for Augmented Reality</h1>
+  <h1 align="center"><img src="assets/lamar_white.svg" width="85"><br><ins>LaMAR</ins><br>Benchmarking Localization and Mapping<br>for Augmented Reality</h1>
   <p align="center">
-    <a href="https://psarlin.com/">Paul-Edouard Sarlin*</a>
+    <a href="https://psarlin.com/">Paul-Edouard&nbsp;Sarlin*</a>
     ·
-    <a href="https://dsmn.ml/">Mihai Dusmanu*</a>
+    <a href="https://dsmn.ml/">Mihai&nbsp;Dusmanu*</a>
     <br>
-    <a href="https://demuc.de/">Johannes L. Schönberger</a>
+    <a href="https://demuc.de/">Johannes&nbsp;L.&nbsp;Schönberger</a>
     ·
-    <a href="https://www.microsoft.com/en-us/research/people/paspecia/">Pablo Speciale</a>
+    <a href="https://www.microsoft.com/en-us/research/people/paspecia/">Pablo&nbsp;Speciale</a>
     ·
-    <a href="https://www.microsoft.com/en-us/research/people/lugruber/">Lukas Gruber</a>
+    <a href="https://www.microsoft.com/en-us/research/people/lugruber/">Lukas&nbsp;Gruber</a>
     ·
-    <a href="https://vlarsson.github.io/">Viktor Larsson</a>
+    <a href="https://vlarsson.github.io/">Viktor&nbsp;Larsson</a>
     ·
-    <a href="http://miksik.co.uk/">Ondrej Miksik</a>
+    <a href="http://miksik.co.uk/">Ondrej&nbsp;Miksik</a>
     ·
-    <a href="https://www.microsoft.com/en-us/research/people/mapoll/">Marc Pollefeys</a>
+    <a href="https://www.microsoft.com/en-us/research/people/mapoll/">Marc&nbsp;Pollefeys</a>
   </p>
 <p align="center">
     <img src="assets/logos.svg" alt="Logo" height="40">
@@ -26,38 +26,199 @@
 </p>
 <p align="center">
     <a href="https://lamar.ethz.ch/"><img src="assets/teaser.svg" alt="Logo" width="80%"></a>
-    <br /><em>LaMAR includes multi-sensor streams recorded by AR devices along hundreds of unconstrained trajectories<br>captured over 2 years in 3 large indoor+outdoor locations.</em>
+    <br>
+    <em>LaMAR includes multi-sensor streams recorded by AR devices along hundreds of unconstrained trajectories captured over 2&nbsp;years in 3&nbsp;large indoor+outdoor locations.</em>
 </p>
 
 ##
 
-This repository hosts the source code for LaMAR, a new benchmark for localization and mapping with AR devices in realistic conditions. We are still in the process of fully releasing the benchmark. Here is the release plan:
+This repository hosts the source code for LaMAR, a new benchmark for localization and mapping with AR devices in realistic conditions. The contributions of this work are:
+1. __A dataset__: multi-sensor data streams captured by AR devices and laser scanners
+2. __scantools__: a processing pipeline to register different user sessions together
+3. __A benchmark__: a framework to evaluate algorithms for localization and mapping
 
-- [x] Evaluation data: [apply here](https://lamar.ethz.ch/lamar/)
-- [x] Evaluation, baselines, data format: see below
-- [ ] Additional documentation
-- [ ] Ground truthing pipeline: to be released soon
+See our [ECCV 2022 tutorial](https://lamar.ethz.ch/tutorial-eccv2022/) for an overview of LaMAR and of the state of the art of localization and mapping for AR.
+
+## Overview
+
+This codebase is composed of the following modules:
+
+- <a href="#benchmark">`lamar`</a>: evaluation pipeline and baselines for localization and mapping
+- <a href="#processing-pipeline">`scantools`</a>: data API, processing tools and pipeline
+- [ScanCapture](apps/ScanCapture_iOS): a data recording app for Apple devices
+
+## Data format
+
+We introduce a new data format, called *Capture*, to handle multi-session and multi-sensor data recorded by different devices. A Capture object corresponds to a capture location. It is composed of multiple sessions and each of them corresponds to a data recording by a given device. Each sessions stores the raw sensor data, calibration, poses, and all assets generated during the processing.
+
+```python
+from scantools.capture import Capture
+capture = Capture.load('data/CAB/')
+print(capture.sessions.keys())
+session = capture.sessions[session_id]  # each session has a unique id
+print(session.sensors.keys())  # each sensor has a unique id
+print(session.rigs)  # extrinsic calibration between sensors
+keys = session.trajectories.key_pairs()  # all (timestamp, sensor_or_rig_id)
+T_w_i = sessions.trajectories[keys[0]]  # first pose, from sensor/rig to world
+```
+
+[More details are provided in the specification document.](./CAPTURE.md)
+
+## Installation
+
+:one: Install the core dependencies:
+
+- Python >= 3.8
+- [hloc](https://github.com/cvg/Hierarchical-Localization) and its dependencies, including [COLMAP](https://colmap.github.io/install.html) built from source
+- everything listed in `requirements/lamar.txt` installed with
+```bash
+python -m pip install -r requirements/lamar.txt
+```
+
+:two: Optional: the processing pipeline additionally relies on heavier dependencies not required for benchmarking:
+
+- Pip dependencies: `python -m pip install -r requirements/scantools.txt`
+- [raybender](https://github.com/cvg/raybender) for raytracing
+- [pcdmeshing](https://github.com/cvg/pcdmeshing) for pointcloud meshing
+
+:three: Optional: install `lamar` and `scantools` as libraries for external use via
+```bash
+python -m pip install -e .
+```
+
+## Benchmark
+
+:one: __Obtain the evaluation data:__ [visit the dataset page](https://lamar.ethz.ch/lamar/) and place the 3 scenes in `./data` :
+
+```
+data/
+├── CAB/
+│   └── sessions/
+│       ├── map/                # mapping session
+│       ├── query_hololens/     # HoloLens test queries
+│       ├── query_phone/        # Phone test queries
+│       ├── query_val_hololens/ # HoloLens validation queries
+│       └── query_val_phone/    # Phone validation queries
+├── HGE
+│   └── ...
+└── LIN
+    └── ...
+```
+
+Each scene contains a mapping session and queries for each device type. We provide a small set of validation queries with known ground-truth poses such that they can be used for developing algorithms and tuning parameters. We keep private the ground-truth poses of the test queries.
+
+:two: __Run the single-frame evaluation__ with the strongest baseline:
+
+```bash
+python -m lamar.run \
+	--scene $SCENE --ref_id map --query_id $QUERY_ID \
+	--retrieval fusion --feature superpoint --matcher superglue
+```
+
+where `$SCENE` is in `{CAB,HGE,LIN}` and `$QUERY_ID` is in `{query_phone,query_hololens}` for testing and in `{query_val_phone,query_val_hololens}` for validation. All outputs are written to `./outputs/` by default. For example, to localize validation Phone queries in the CAB scene:
+```bash
+python -m lamar.run \
+	--scene CAB --ref_id map --query_id query_val_phone \
+	--retrieval fusion --feature superpoint --matcher superglue
+```
+
+This executes two steps:
+1. Create a sparse 3D map using the mapping session via feature extraction, pair selection, feature matching, triangulation
+2. Localize each image of the sequence via feature extraction, pair selection, feature matching, absolute pose estimation
+
+:three: __Obtain the evaluation results:__
+
+- validation queries: the script print the localization recall.
+- test queries: until the benchmark leaderboard is up and running, please send the predicted pose files to `lamar.benchmark@ethz.ch` :warning: we will only accept at most 2 submissions per user per week.
+
+The benchmarking pipeline is designed such that:
+- the mapping and localization process is split into modular steps listed in [`lamar/tasks/`](./lamar/tasks/)
+- outputs like features and matches are cached and re-used over multiple similar runs
+- changing a configuration entry automatically triggers the recomputation of all downstream steps that depend on it
+
+#### Other evaluation options
+
+<details>
+<summary>[Click to expand]</summary>
+
+Using radio signals for place recognition:
+```bash
+python -m lamar.run [...] --use_radios
+```
+
+Localization with sequences of 10 seconds instead of single images:
+```bash
+python -m lamar.run [...] --sequence_length_seconds 10
+```
+
+</details>
+
+#### Adding your own algorithms
+
+<details>
+<summary>[Click to expand]</summary>
+
+To add a new local feature:
+- add your feature extractor to hloc in [`hloc/extractors/myfeature.py`](https://github.com/cvg/Hierarchical-Localization/tree/master/hloc/extractors)
+- create a configuration entry in [`lamar.tasks.feature_extraction.FeatureExtraction.methods`](./lamar/tasks/feature_extraction.py)
+
+To add a new global feature for image retrieval:
+- add your feature extractor to hloc in [`hloc/extractors/myfeature.py`](https://github.com/cvg/Hierarchical-Localization/tree/master/hloc/extractors)
+- create a configuration entry in [`lamar.tasks.feature_extraction.RetrievalFeatureExtraction.methods`](./lamar/tasks/feature_extraction.py)
+
+To add a new local feature matcher:
+- add your feature matcher to hloc in [`hloc/matchers/mymatcher.py`](https://github.com/cvg/Hierarchical-Localization/tree/master/hloc/matchers)
+- create a configuration entry in [`lamar.tasks.feature_matching.RetrievalFeatureMatching.methods`](./lamar/tasks/feature_matching.py)
+
+To add a new pose solver: create a new class that inherits from [`lamar.tasks.pose_estimation.SingleImagePoseEstimation`](./lamar/tasks/pose_estimation.py):
+
+```python
+class MyPoseEstimation(SingleImagePoseEstimation):
+    method = {'name': 'my_estimator'}
+    def run(self, capture):
+        ...
+```
+
+</details>
+
+## Processing pipeline
+
+Each step of the pipeline corresponds to a runfile in `scantools/run_*.py` that can be used as follow:
+
+- executed from the command line: `python -m scantools.run_phone_to_capture [--args]`
+- imported as a library:
+
+```python
+from scantools import run_phone_to_capture
+run_phone_to_capture.run(...)
+```
+
+We provide pipeline scripts that execute all necessary steps:
+
+- [`pipelines/pipeline_scans.py`](pipelines/pipeline_scans.py) aligns multiple NavVis sessions and merge them into a unique reference session
+- [`pipelines/pipeline_sequence.py`](pipelines/pipeline_sequence.py) aligns all AR sequences to the reference session
+
+The raw data will be released soon such that anyone is able to run the processing pipeline without access to capture devices.
+
+Here are runfiles that could be handy for importing and exporting data:
+- `run_phone_to_capture`: convert a [ScanCapture](apps/ScanCapture_iOS) recording into a Capture session
+- `run_navvis_to_capture`: convert a NavVis recording into a Capture Session
+- `run_session_to_kapture`: convert a Capture session into a [Kapture](https://github.com/naver/kapture) instance
+- `run_capture_to_empty_colmap`: convert a Capture session into an empty [COLMAP model](https://colmap.github.io/format.html#sparse-reconstruction)
+- `run_image_anonymization`: anonymize faces and license plates using the [Brighter.AI](https://brighter.ai/) API
+- `run_radio_anonymization`: anonymize radio signal IDs
+- `run_combine_sequences`: combine multiple sequence sessions into a single session
+
+## Release plan
+
+ We are still in the process of fully releasing LaMAR. Here is the release plan:
+
+- [x] LaMAR evaluation data and benchmark
+- [x] Ground truthing pipeline
+- [x] iOS capture app
 - [ ] Full raw data
 - [ ] Leaderboard and evaluation server
-
-## Running the evaluation
-
-Requirements:
-- Python >= 3.8
-- [pycolmap](https://github.com/mihaidusmanu/pycolmap) installed from source (recommended) or via `pip install pycolmap`
-- [hloc](https://github.com/cvg/Hierarchical-Localization) and its dependencies
-- [raybender](https://github.com/cvg/raybender)
-- [pyceres](https://github.com/cvg/pyceres)
-- everything listed in `requirements.txt`, via `python -m pip install -r requirements.txt`
-
-Running the single-frame evaluation:
-```
-python -m lamar_benchmark.run \
-	--scene SCENE --ref_id map --query_id query_phone \
-	--retrieval netvlad --feature sift --matcher mnn
-```
-
-By default, the script assumes that the data was placed in `./data/` and will write the intermediate dumps and final outputs to `./outputs/`.
+- [ ] 3D dataset viewer
 
 ## BibTex citation
 
