@@ -1,8 +1,7 @@
-import sys
 import logging
 from pathlib import Path
 from dataclasses import dataclass, fields, Field
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Union, get_origin, get_args
 from enum import Enum
 
 from .sensors import Sensors, Camera
