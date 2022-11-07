@@ -155,6 +155,6 @@ if __name__ == '__main__':
 
     if isinstance(results_, str):
         logger.info('%s is a test sequence. Submit %s to the benchmark to obtain the results.',
-                    args['auery_id'], results_)
+                    args['query_id'], results_)
     else:
         logger.info('Results:\n%s', pformat(results_))
