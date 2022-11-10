@@ -9,7 +9,6 @@ from .meshlab import MeshlabProject
 from .image import plot_images, plot_matches, cm_RdGn, cm_normals
 from ..utils.io import read_image
 from ..capture import Capture, Camera, Pose, Trajectories
-from ..proc.rendering import Renderer
 
 
 def plot_pnp_inliers(qname: str, refs: List[str], ret: Dict, data_root: Path, num_pairs: int = 2):
@@ -74,7 +73,7 @@ def plot_pnp_inliers_rig(qnames: str, retrieval: Dict[str, List[str]], ret: Dict
             color=color.tolist(), indices=(i*2, i*2+1), a=0.1)
 
 
-def plot_rendering_diff(renderer: Renderer, path: Path, camera: Camera, pose: Pose):
+def plot_rendering_diff(renderer, path: Path, camera: Camera, pose: Pose):
     im = read_image(path)
     render, depth = renderer.render_from_capture(pose, camera)
     if im.ndim == 2:  # gray
@@ -87,7 +86,7 @@ def plot_rendering_diff(renderer: Renderer, path: Path, camera: Camera, pose: Po
     return tiled
 
 
-def plot_normal_overlay(renderer: Renderer, path: Path, camera: Camera, pose: Pose, a: float = 0.2):
+def plot_normal_overlay(renderer, path: Path, camera: Camera, pose: Pose, a: float = 0.2):
     im = read_image(path)
     if im.ndim == 2:  # gray
         im = np.repeat(im[:, :, None], 3, 2)

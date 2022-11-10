@@ -7,10 +7,8 @@ import pycolmap
 from hloc import triangulation
 
 from scantools import run_capture_to_empty_colmap
-from scantools.proc.rendering import Renderer
 from scantools.proc.alignment.image_matching import get_keypoints
 from scantools.utils.geometry import to_homogeneous
-from scantools.utils.io import read_mesh
 
 from .feature_extraction import FeatureExtraction
 from .feature_matching import FeatureMatching
@@ -132,6 +130,8 @@ class MeshLifting(Mapping):
     def __init__(self, config, outputs, capture, session_id,
                  extraction: FeatureExtraction, matching: FeatureMatching = None):
         super().__init__(config, outputs, capture, session_id, extraction)
+        from scantools.proc.rendering import Renderer
+        from scantools.utils.io import read_mesh
         session = capture.sessions[self.session_id]
         proc_path = capture.proc_path(self.session_id)
         mesh = read_mesh(proc_path / session.proc.meshes[self.config['mesh_id']])

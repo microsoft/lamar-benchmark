@@ -11,7 +11,6 @@ from tqdm.contrib.concurrent import thread_map
 import pycolmap
 
 from . import Paths, save_stats, image_matching as imatch
-from .scan import lift_points_to_3d
 from ...capture import Capture, Pose, Trajectories, Camera
 from ...utils.configuration import BaseConf
 from ...viz.alignment import plot_pnp_inliers, plot_pnp_inliers_rig, plot_raw_matches
@@ -120,6 +119,7 @@ class Batch2d3dMatcher:
                 continue
             kp_q_m, kp_r_m = kp_q[matches[:, 0]], kp_r[matches[:, 1]]
             key = self.impath2key_r[ref]
+            from .scan import lift_points_to_3d
             p3d, valid = lift_points_to_3d(kp_r_m, key,
                                            self.capture.sessions[self.ref_id],
                                            self.capture.data_path(self.ref_id),

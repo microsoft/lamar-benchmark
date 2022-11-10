@@ -13,7 +13,6 @@ from hloc.utils.base_model import dynamic_load
 from hloc.utils.io import find_pair
 from hloc.utils.parsers import parse_retrieval, names_to_pair
 
-from .. import overlap
 from ...capture import Session, Pose, Trajectories
 from ...utils.configuration import BaseConf
 
@@ -227,6 +226,7 @@ def match_from_overlap(impath2key_q, impath2key_ref, id_q, id_ref, capture, T_q,
 
     images_q, keys_q = zip(*impath2key_q.items())
     images_ref, keys_ref = zip(*impath2key_ref.items())
+    from .. import overlap
     pairs = overlap.pairs_for_sequence(capture, id_q, id_ref, conf.num_pairs,
                                        keys_q, keys_ref, T_q)
     pairs = {images_q[i]: [images_ref[j] for j in js] for i, js in enumerate(pairs)}
