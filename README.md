@@ -129,9 +129,9 @@ This executes two steps:
 :three: __Obtain the evaluation results:__
 
 - validation queries: the script print the localization recall.
-- test queries: until the benchmark leaderboard is up and running, please send the predicted pose files to `lamar.benchmark@ethz.ch` :warning: we will only accept at most 2 submissions per user per week.
+- test queries: until the benchmark leaderboard is up and running, please send the predicted pose files to <a href="&#x6d;ailto&#58;lamar-benchmark&#x40;sympa.ethz.ch">lamar-benchmark&#x40;sympa.ethz.ch</a> :warning: we will only accept at most 2 submissions per user per week.
 
-The benchmarking pipeline is designed such that:
+:four: __Workflow:__ the benchmarking pipeline is designed such that
 - the mapping and localization process is split into modular steps listed in [`lamar/tasks/`](./lamar/tasks/)
 - outputs like features and matches are cached and re-used over multiple similar runs
 - changing a configuration entry automatically triggers the recomputation of all downstream steps that depend on it
