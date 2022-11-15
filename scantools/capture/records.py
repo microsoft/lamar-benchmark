@@ -5,10 +5,11 @@ from functools import cached_property
 from pathlib import Path
 from dataclasses import dataclass, fields, astuple
 from abc import ABC, abstractproperty, abstractmethod
-from typing import Dict, List, Set, Tuple, TypeVar, Union
+from typing import Dict, List, Set, TypeVar, Union
 import numpy as np
 
 from ..utils.io import read_csv, write_csv
+from .misc import KeyType
 
 
 T = TypeVar('T')  # Declare generic type variable
@@ -27,7 +28,7 @@ class RecordsBase(Dict[int, Dict[str, T]], dict, ABC):
         raise NotImplementedError
 
     def __setitem__(self,
-                    key: Union[int, Tuple[int, str]],
+                    key: Union[int, KeyType],
                     value: Union[Dict[str, T], T]):
         # enforce type checking
         if isinstance(key, tuple):
@@ -47,7 +48,7 @@ class RecordsBase(Dict[int, Dict[str, T]], dict, ABC):
         else:
             raise TypeError('key must be either int or Tuple[int, str]')
 
-    def __getitem__(self, key: Union[int, Tuple[int, str]]) -> Union[Dict[str, T], T]:
+    def __getitem__(self, key: Union[int, KeyType]) -> Union[Dict[str, T], T]:
         if isinstance(key, tuple):  # pylint: disable=no-else-return
             timestamp, device_id = key
             return super().__getitem__(timestamp)[device_id]
@@ -56,7 +57,7 @@ class RecordsBase(Dict[int, Dict[str, T]], dict, ABC):
         else:
             raise TypeError('key must be either int or Tuple[int, str]')
 
-    def __delitem__(self, key: Union[int, Tuple[int, str]]):
+    def __delitem__(self, key: Union[int, KeyType]):
         if isinstance(key, tuple):
             timestamp, device_id = key
             super().__getitem__(timestamp).__delitem__(device_id)
@@ -67,7 +68,7 @@ class RecordsBase(Dict[int, Dict[str, T]], dict, ABC):
         else:
             raise TypeError('key must be either int or Tuple[int, str]')
 
-    def key_pairs(self) -> List[Tuple[int, str]]:
+    def key_pairs(self) -> List[KeyType]:
         return [
             (timestamp, sensor_id)
             for timestamp, sensors in self.items()
@@ -82,7 +83,7 @@ class RecordsBase(Dict[int, Dict[str, T]], dict, ABC):
             for sensor_id in sensors.keys()
         )
 
-    def __contains__(self, key: Union[int, Tuple[int, str]]):
+    def __contains__(self, key: Union[int, KeyType]):
         if isinstance(key, tuple):  # pylint: disable=no-else-return
             timestamp, device_id = key
             return super().__contains__(timestamp) and device_id in self[timestamp]

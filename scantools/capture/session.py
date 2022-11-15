@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 from dataclasses import dataclass, fields, Field
 from typing import Dict, Optional, Union, get_origin, get_args
+from enum import Enum
 
 from .sensors import Sensors, Camera
 from .rigs import Rigs
@@ -12,7 +13,24 @@ from .pose import Pose
 
 logger = logging.getLogger(__name__)
 
+class Device(Enum):
+    NAVVIS = 'NAVVIS'
+    HOLOLENS = 'HOLOLENS'
+    PHONE = 'PHONE'
+    UNDEFINED = 'UNDEFINED'
 
+    @classmethod
+    def from_id(cls, id_: str):
+        if id_ is not None:
+            if id_.startswith('hl'):
+                return Device.HOLOLENS
+            if id_.startswith('ios'):
+                return Device.PHONE
+        return Device.UNDEFINED
+
+
+# TODO: inherit Rigs, Trajectories, and Records from a common abstract class
+# TODO: add proc/: mesh, depth rendering, alignment, overlap
 @dataclass
 class Session:
     sensors: Sensors
@@ -24,9 +42,11 @@ class Session:
     wifi: Optional[RecordsWifi] = None
     bt: Optional[RecordsBluetooth] = None
     proc: Optional[Proc] = None
+    id: Optional[str] = None
 
     data_dirname = 'raw_data'
     proc_dirname = 'proc'
+    Device = Device  # pylint: disable=invalid-name
 
     def __post_init__(self):
         all_devices = set(self.sensors.keys())
@@ -43,6 +63,10 @@ class Session:
             return {}
         return {k: v for k, v in self.sensors.items() if isinstance(v, Camera)}
 
+    @property
+    def device(self) -> Device:
+        return Device.from_id(self.id)
+
     @classmethod
     def filename(cls, attr: Union[Field, str]) -> str:
         name = attr.name if isinstance(attr, Field) else attr
@@ -56,6 +80,8 @@ class Session:
             raise IOError(f'Session directory does not exists: {path}')
         data = {}
         for attr in fields(cls):
+            if attr.name == 'id':
+                continue
             filepath = path / cls.filename(attr)
             if not filepath.exists():
                 continue
@@ -73,7 +99,7 @@ class Session:
             data[attr.name] = obj
         if 'sensors' not in data:
             raise ValueError(f'No sensor file for session at path {path}.')
-        return cls(**data)
+        return cls(**data, id=path.name)
 
     def get_pose(self, ts: int, sensor_id: str, poses: Optional[Trajectories] = None) -> Pose:
         if poses is None:
@@ -102,6 +128,8 @@ class Session:
     def save(self, path: Path):
         path.mkdir(exist_ok=True, parents=True)
         for attr in fields(self):
+            if attr.name == 'id':
+                continue
             data = getattr(self, attr.name)
             if data is None:
                 continue
@@ -109,6 +137,7 @@ class Session:
             if filepath.exists() and attr.name != 'proc':
                 raise IOError(f'File exists: {filepath}')
             data.save(filepath)
+        self.id = path.name
 
     def __repr__(self) -> str:
         strs = []

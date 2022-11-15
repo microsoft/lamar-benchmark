@@ -6,6 +6,8 @@ from .. import logger
 from .session import Session
 
 
+# TODO: make dataclasses frozen or generate getter+setter properties with typecheck
+# TODO: enforce that no session/rig/sensor id has any comma or starts/ends with /
 @dataclass
 class Capture:
     sessions: Dict[str, Session] = None
@@ -16,6 +18,8 @@ class Capture:
 
     @classmethod
     def load(cls, path: Path, session_ids: Optional[Iterator[str]] = None, **kwargs) -> 'Capture':
+        if not isinstance(path, Path):
+            path = Path(path)
         if not path.exists():
             raise IOError(f'Capture directory does not exists: {path}')
         sessions_path = path / cls.sessions_dirname

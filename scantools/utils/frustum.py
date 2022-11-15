@@ -1,9 +1,8 @@
-
-from typing import Optional, List
+from typing import Optional, List, Dict, Tuple
 import numpy as np
 from tqdm.contrib.concurrent import thread_map
 
-from ..capture import Session, Trajectories
+from ..capture import Capture, Session, Trajectories, KeyType
 
 
 def plane_check(plane_points, check_points, eps=1e-6):
@@ -65,7 +64,7 @@ def _pyramid_non_intersection_partial_check(pyramid_points1, pyramid_points2):
     return does_not_intersect
 
 
-def pyramid_intersection_check(pyramid_points1, pyramid_points2, batch_size=5_000):
+def pyramid_intersection_check(pyramid_points1, pyramid_points2, batch_size=5_000, num_threads=8):
     # Input:
     #   pyramid_points1 is N x 5 x 3 in format (O, top_left, bottom_left, bottom_right, top_right)
     #   pyramid_points2 is M x 5 x 3 in same format as above
@@ -94,7 +93,11 @@ def pyramid_intersection_check(pyramid_points1, pyramid_points2, batch_size=5_00
             pyramid_points2[start_idx_M : end_idx_M],
             pyramid_points1[start_idx_N : end_idx_N])
         intersects[start_idx_N : end_idx_N, start_idx_M : end_idx_M] = ~(does_not_intersect1 | does_not_intersect2.T)
-    thread_map(_worker_fn, params, max_workers=8)
+    if len(params) < 4:
+        for p in params:
+            _worker_fn(p)
+    else:
+        thread_map(_worker_fn, params, max_workers=num_threads)
     return intersects
 
 
@@ -133,3 +136,24 @@ def frustum_intersections(keys_q: List, session_q: Session, T_q: Optional[Trajec
     else:
         frustums_r = pyramids_from_trajectory(keys_r, session_r, poses=poses_r, max_depth=max_depth)
     return pyramid_intersection_check(frustums_q, frustums_r)
+
+
+def frustum_intersection_multisessions(capture: Capture,
+                                       keys: List[Tuple[str, KeyType]],
+                                       session2trajectory: Optional[Dict[str, Trajectories]] = None,
+                                       max_depth: float = 20.0,
+                                       **kwargs) -> np.ndarray:
+    frustums = []
+    for sid, (ts, cam_id) in keys:
+        session = capture.sessions[sid]
+        if session2trajectory is None:
+            traj = session.proc.alignment_trajectories or session.trajectories
+        else:
+            traj = session2trajectory[sid]
+        pose = session.get_pose(ts, cam_id, traj)
+        camera = session.sensors[cam_id]
+        pyramid = pyramid_from_camera(
+            pose.R, pose.t, camera.width, camera.height, *camera.projection_params, max_depth)
+        frustums.append(pyramid.astype(np.float32))
+    frustums = np.stack(frustums)
+    return pyramid_intersection_check(frustums, frustums, **kwargs)

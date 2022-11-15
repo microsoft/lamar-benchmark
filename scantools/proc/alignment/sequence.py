@@ -1,10 +1,13 @@
 import logging
-from typing import Tuple
+from typing import Tuple, Dict, Optional, Union
 from copy import deepcopy
+import dataclasses
 import numpy as np
 from tqdm import tqdm
 import pyceres
 
+from . import image_matching as imatch
+from .localization import LocalizerConf, RelocConf
 from .refinement import add_pose_graph_factors_to_sequence
 from ...capture import Pose, Trajectories
 from ...utils.configuration import BaseConf
@@ -18,13 +21,13 @@ class InitializerConf(BaseConf):
     min_num_inliers: int = 4
 
 class PGOConf(BaseConf):
-    rel_noise_tracking: float = 0.01  # noise of the tracking
+    rel_noise_tracking: float = 0.001  # noise of the tracking
     cost_tracking: Tuple = ('Null',)
     cost_loc: Tuple = ('Arctan', 100.)
     num_threads: int = -1
 
 class BAConf(BaseConf):
-    rel_noise_tracking: float = 0.01  # noise of the tracking
+    rel_noise_tracking: float = 0.001  # noise of the tracking
     cost_tracking: Tuple = ('Null',)
     noise_point3d: float = 0.02 # estimate of mesh accuracy [m]
     noise_bundle_multiplier: float = 1  # noise of the keypoint detection
@@ -32,20 +35,30 @@ class BAConf(BaseConf):
     reproj_filter_lambda: float = 5
     num_threads: int = -1
 
+class SequenceAlignmentConf(BaseConf):
+    matching: imatch.MatchingConf
+    localizer: LocalizerConf = dataclasses.field(default_factory=LocalizerConf)
+    reloc: Optional[LocalizerConf] = dataclasses.field(default_factory=RelocConf)
+    init: InitializerConf = dataclasses.field(default_factory=InitializerConf)
+    pgo: PGOConf = dataclasses.field(default_factory=PGOConf)
+    ba: BAConf = dataclasses.field(default_factory=BAConf)
 
-def align_trajectories_with_voting(traj_query, traj_ref, conf: InitializerConf):
+
+def align_trajectories_with_voting(
+        traj_query: Trajectories, traj_ref: Trajectories, conf: InitializerConf
+        ) -> Tuple[Optional[Trajectories], Dict, Pose]:
     keys = sorted(set(traj_query.key_pairs()) & set(traj_ref.key_pairs()))
     if len(keys) == 0:
-        return False, None
+        return None, {'success': False}
     T_query = [traj_query[k] for k in keys]
     T_ref = [traj_ref[k] for k in keys]
+    indices = range(len(keys))
 
-    nums = []
     best_data = (np.inf, None, None, None, None)
     best_num = 0
-    for idx in tqdm(range(len(keys)), disable=(logger.level > logging.INFO)):
+    for idx in tqdm(indices, disable=(logger.level > logging.INFO)):
         T_q2r = T_ref[idx] * T_query[idx].inverse()
-        diffs = [T_ref[i].inverse() * T_q2r * T_query[i] for i in range(len(keys))]
+        diffs = [T_ref[i].inverse() * T_q2r * T_query[i] for i in indices]
         dt = np.stack([np.linalg.norm(diff.t) for diff in diffs])
         dR = np.stack([diff.r.magnitude() for diff in diffs])
 
@@ -54,7 +67,6 @@ def align_trajectories_with_voting(traj_query, traj_ref, conf: InitializerConf):
         err_t = np.median(dt[inliers])
         err_rot = np.rad2deg(np.median(dR[inliers]))
         score = err_t + err_rot
-        nums.append(num)
 
         if num > best_num or (num == best_num and score < best_data[0]):
             best_num = num
@@ -63,8 +75,19 @@ def align_trajectories_with_voting(traj_query, traj_ref, conf: InitializerConf):
     _, err_t, err_rot, inliers, T_q2r = best_data
     logger.info('Voting trajectory alignment: dR=%.2fdeg dt=%.3fm inliers=%d/%d (%.1f%%)',
                 err_rot, err_t, inliers.sum(), len(inliers), 100*inliers.mean())
-    success = len(inliers) >= conf.min_num_inliers
-    return success, T_q2r
+    success = inliers.sum() >= conf.min_num_inliers
+    traj_aligned = None
+    if success:
+        traj_aligned = Trajectories()
+        for k in traj_query.key_pairs():
+            traj_aligned[k] = T_q2r * traj_query[k]
+    stats = {
+        'success': success,
+        'inliers': inliers,
+        'median_error': (err_rot, err_t),
+        'T_q2r': T_q2r.to_4x4mat(),
+    }
+    return traj_aligned, stats
 
 
 def get_loss(name: str, *params) -> pyceres.LossFunction:
@@ -82,6 +105,7 @@ def print_pose_stats(prefix: str, T_1tow: Trajectories, T_2tow: Trajectories):
                 prefix,
                 dr.mean(), np.median(dr), np.percentile(dr, 10), np.percentile(dr, 90),
                 dt.mean(), np.median(dt), np.percentile(dt, 10), np.percentile(dt, 90))
+    return {'dr': dr, 'dt': (dt / 100)}
 
 
 def optimize_sequence_pose_graph_gnc(poses_tracking, poses_loc, poses_init, conf: PGOConf):
@@ -91,33 +115,17 @@ def optimize_sequence_pose_graph_gnc(poses_tracking, poses_loc, poses_init, conf
        to Global Outlier Rejection", Yang, Antonante, Tzoumas, Carlone, ICRA/RAL, 2020.
        https://arxiv.org/pdf/1909.08605.pdf
     '''
+    stats = []
     cost_loc, mu_target = conf.cost_loc
     multiplier = 1.4
     mu = mu_target * 10 * multiplier
     poses_opt = poses_init
     while mu > mu_target:
         mu = max(mu_target, mu / multiplier)
-        poses_opt = optimize_sequence_pose_graph(
+        poses_opt, stat = optimize_sequence_pose_graph(
             poses_tracking, poses_loc, poses_opt, conf.update(dict(cost_loc=(cost_loc, mu))))
-    return poses_opt
-
-
-def optimize_pgo_with_init(poses_tracking: Trajectories, poses_loc: Trajectories,
-                           conf_init: InitializerConf, conf_pgo: PGOConf):
-    # Initial alignment (assuming that the tracking is rigid)
-    logger.info('Running pose initialization via voting.')
-    success, T_q2r = align_trajectories_with_voting(poses_tracking, poses_loc, conf_init)
-    if not success:
-        return None, None
-
-    poses_init = Trajectories()
-    for k in poses_tracking.key_pairs():
-        poses_init[k] = T_q2r * poses_tracking[k]
-
-    # Pose graph between the localization prior and the sequential relative tracking
-    logger.info('Running pose graph optimization.')
-    poses_pgo = optimize_sequence_pose_graph_gnc(poses_tracking, poses_loc, poses_init, conf_pgo)
-    return poses_init, poses_pgo
+        stats.append(stat)
+    return poses_opt, stats
 
 
 def optimize_sequence_pose_graph(poses_tracking, poses_loc, poses_init, conf: PGOConf):
@@ -151,8 +159,62 @@ def optimize_sequence_pose_graph(poses_tracking, poses_loc, poses_init, conf: PG
     poses_opt = Trajectories()
     for k, qt in qt_opt.items():
         poses_opt[k] = Pose(*qt).inverse()
-    print_pose_stats('Pose graph optimization', poses_init, poses_opt)
-    return poses_opt
+    stats = print_pose_stats('Pose graph optimization', poses_init, poses_opt)
+    return poses_opt, stats
+
+
+def compute_pose_covariances(problem: pyceres.Problem, qts: Dict, conf: Union[PGOConf, BAConf],
+                             ) -> Dict:
+    opts = pyceres.CovarianceOptions(dict(num_threads=conf.num_threads))
+    cov = pyceres.Covariance(opts)
+    blocks = []
+    for q, t in qts.values():
+        blocks.extend([(t, t), (q, q), (q, t)])
+    if not cov.compute(blocks, problem):
+        return None
+    covariances = {}
+    for k, (q, t) in qts.items():
+        c_qq = cov.get_covariance_block_tangent_space(q, q, problem)
+        c_tt = cov.get_covariance_block(t, t)
+        c_qt = cov.get_covariance_block_tangent_space(q, t, problem)
+        covariances[k] = np.block([[c_qq, c_qt], [c_qt.T, c_tt]])
+    return covariances
+
+
+def compute_reprojection_errors(qt_init, qt_opt, p3d_opt, session_q, matches_2d3d, tracks_ref,
+                                data_bundle, conf: BAConf) -> Tuple[np.ndarray]:
+    initial_reprojection_errors = []
+    final_reprojection_errors = []
+    for ts, rig_id, cam_id, T_cam2rig in tqdm(data_bundle, disable=(logger.level > logging.INFO)):
+        matches = matches_2d3d.get((ts, cam_id))
+        if matches is None:
+            continue
+        p2ds = matches['kp_q']
+        p3ds = matches['p3d']
+        node_ids_ref = matches['node_ids_ref']
+        stddev_keypoint = matches['keypoint_noise'] * conf.noise_bundle_multiplier
+        camera = session_q.sensors[cam_id]
+        T_w2cam = (T_cam2rig or Pose()).inverse() * Pose(*qt_init[ts, rig_id])
+        for p2d, p3d, node_id_ref in zip(p2ds, p3ds, node_ids_ref):
+            node_id_ref = tuple(node_id_ref)
+            if tracks_ref is not None and node_id_ref in tracks_ref['node_to_root_mapping']:
+                node_id_ref = tracks_ref['node_to_root_mapping'][node_id_ref]
+                p3d = tracks_ref['track_p3d'][node_id_ref]
+
+            factor = pyceres.factors.BundleAdjustmentRigCost(
+                camera.model.model_id, p2d, *(T_cam2rig or Pose()).inverse().qt, stddev_keypoint)
+            residual = factor.evaluate(*qt_init[ts, rig_id], p3d, np.array(camera.params))[0]
+            behind = T_w2cam.transform_points(p3d)[-1] <= 0
+            if behind or residual is None or np.linalg.norm(residual) > conf.reproj_filter_lambda:
+                continue
+            initial_reprojection_errors.append(np.linalg.norm(residual)*stddev_keypoint)
+
+            residual = factor.evaluate(
+                *qt_opt[ts, rig_id], p3d_opt[node_id_ref], np.array(camera.params))[0]
+            if residual is None:
+                continue
+            final_reprojection_errors.append(np.linalg.norm(residual)*stddev_keypoint)
+    return np.array(initial_reprojection_errors), np.array(final_reprojection_errors)
 
 
 def print_reprojection_stats(prefix, reproj_errors, std):
@@ -169,6 +231,7 @@ def print_reprojection_stats(prefix, reproj_errors, std):
                 np.mean(reproj_errors <= 3 * std) * 100,
                 np.mean(reproj_errors <= 4 * std) * 100,
                 np.mean(reproj_errors <= 5 * std) * 100)
+    return {'error': reproj_errors, 'std': std}
 
 
 def print_tracking_stats(prefix, poses_tracking, poses):
@@ -197,6 +260,7 @@ def print_tracking_stats(prefix, poses_tracking, poses):
                 np.mean((rel_dr <= 3) & (rel_dt <= 3)) * 100,
                 np.mean((rel_dr <= 4) & (rel_dt <= 4)) * 100,
                 np.mean((rel_dr <= 5) & (rel_dt <= 5)) * 100)
+    return {'rel_dr': rel_dr, 'rel_dt': rel_dt}
 
 
 def optimize_sequence_bundle_gnc(poses_tracking, poses_init, session_q,
@@ -215,7 +279,9 @@ def optimize_sequence_bundle_gnc(poses_tracking, poses_init, session_q,
 
 def optimize_sequence_bundle(poses_tracking, poses_init, session_q,
                              matches_2d3d, tracks_ref, conf: BAConf,
-                             use_reference_tracks=True):
+                             use_reference_tracks=True,
+                             compute_stats: bool = True,
+                             compute_covariances: bool = True):
     loss_bundle = get_loss(*conf.cost_bundle)
     loss_tracking = get_loss(*conf.cost_tracking)
     if conf.noise_point3d is None:
@@ -223,7 +289,6 @@ def optimize_sequence_bundle(poses_tracking, poses_init, session_q,
     else:
         # Convert from uniform noise over cube to Gaussian distribution with same std.
         noise_point3d = np.eye(3) * conf.noise_point3d / np.sqrt(3)
-
 
     keys = sorted(poses_init.key_pairs())
     data_bundle = []  # list all the cameras with their transforms
@@ -321,51 +386,28 @@ def optimize_sequence_bundle(poses_tracking, poses_init, session_q,
                     np.percentile(diff, 10), np.percentile(diff, 90),
                     np.max(diff))
 
+    if compute_covariances:
+        covariances = compute_pose_covariances(problem, qt_opt, conf)
     poses_opt = Trajectories()
     for k, qt in qt_opt.items():
         poses_opt[k] = Pose(*qt).inverse()
-    print_pose_stats('Bundle adjustment', poses_init, poses_opt)
+        if compute_covariances and covariances is not None:
+            # the covariance returned by ceres is on the left side,
+            # which is the right side of the inverse.
+            poses_opt[k] = Pose(*poses_opt[k].qt, covariances[k])
 
-    # Tracking stats.
-    print_tracking_stats('Pre-BA', poses_tracking, poses_init)
-    print_tracking_stats('Post-BA', poses_tracking, poses_opt)
+    stats = {}
+    if compute_stats:
+        stats['poses'] = print_pose_stats('Bundle adjustment', poses_init, poses_opt)
+        stats['tracking_pre'] = print_tracking_stats('Pre-BA', poses_tracking, poses_init)
+        stats['tracking_post'] = print_tracking_stats('Post-BA', poses_tracking, poses_opt)
+        logger.info('Computing reprojection statistics.')
+        initial_reprojection_errors, final_reprojection_errors = compute_reprojection_errors(
+            qt_init, qt_opt, p3d_opt, session_q, matches_2d3d, tracks_ref, data_bundle, conf)
+        if initial_reprojection_errors.shape[0] > 0:
+            stats['reproj_pre'] = print_reprojection_stats(
+                'Pre-BA', initial_reprojection_errors, np.mean(avg_noise_bundle))
+            stats['reproj_post'] = print_reprojection_stats(
+                'Post-BA', final_reprojection_errors, np.mean(avg_noise_bundle))
 
-    # Reprojection statistics.
-    logger.info('Computing reprojection statistics.')
-    initial_reprojection_errors = []
-    final_reprojection_errors = []
-    for ts, rig_id, cam_id, T_cam2rig in tqdm(data_bundle, disable=(logger.level > logging.INFO)):
-        matches = matches_2d3d.get((ts, cam_id))
-        if matches is None:
-            continue
-        p2ds = matches['kp_q']
-        p3ds = matches['p3d']
-        node_ids_ref = matches['node_ids_ref']
-        stddev_keypoint = matches['keypoint_noise'] * conf.noise_bundle_multiplier
-        camera = session_q.sensors[cam_id]
-        T_w2cam = (poses_init[ts, rig_id] * (T_cam2rig or Pose())).inverse()
-        for p2d, p3d, node_id_ref in zip(p2ds, p3ds, node_ids_ref):
-            node_id_ref = tuple(node_id_ref)
-            if use_reference_tracks and node_id_ref in tracks_ref['node_to_root_mapping']:
-                node_id_ref = tracks_ref['node_to_root_mapping'][node_id_ref]
-                p3d = tracks_ref['track_p3d'][node_id_ref]
-
-            factor = pyceres.factors.BundleAdjustmentRigCost(
-                camera.model.model_id, p2d, *(T_cam2rig or Pose()).inverse().qt, stddev_keypoint)
-            residual = factor.evaluate(*qt_init[ts, rig_id], p3d, np.array(camera.params))[0]
-            behind = T_w2cam.transform_points(p3d)[-1] <= 0
-            if behind or residual is None or np.linalg.norm(residual) > conf.reproj_filter_lambda:
-                continue
-            initial_reprojection_errors.append(np.linalg.norm(residual)*stddev_keypoint)
-
-            residual = factor.evaluate(
-                *qt_opt[ts, rig_id], p3d_opt[node_id_ref], np.array(camera.params))[0]
-            if residual is None or np.linalg.norm(residual) > conf.reproj_filter_lambda:
-                continue
-            final_reprojection_errors.append(np.linalg.norm(residual)*stddev_keypoint)
-    initial_reprojection_errors = np.array(initial_reprojection_errors)
-    final_reprojection_errors = np.array(final_reprojection_errors)
-    if initial_reprojection_errors.shape[0] > 0:
-        print_reprojection_stats('Pre-BA', initial_reprojection_errors, np.mean(avg_noise_bundle))
-        print_reprojection_stats('Post-BA', final_reprojection_errors, np.mean(avg_noise_bundle))
-    return poses_opt
+    return poses_opt, stats

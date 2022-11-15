@@ -1,5 +1,7 @@
 import logging
-from typing import Tuple
+import weakref
+from typing import Tuple, Union
+from pathlib import Path
 import open3d as o3d
 import numpy as np
 
@@ -13,6 +15,7 @@ except ImportError as error:
 
 from ..capture import Pose, Camera
 from ..utils.geometry import to_homogeneous
+from ..utils.io import read_mesh
 
 
 def compute_rays(T_cam2w: Pose, camera: Camera, stride: int = 1):
@@ -37,19 +40,28 @@ def compute_rays(T_cam2w: Pose, camera: Camera, stride: int = 1):
 
 
 class Renderer:
-    def __init__(self, mesh: o3d.geometry.TriangleMesh):
+    def __init__(self, mesh: Union[Path, o3d.geometry.TriangleMesh]):
+        if isinstance(mesh, Path):
+            mesh = read_mesh(mesh)
+        assert isinstance(mesh, o3d.geometry.TriangleMesh)
+
         vertices = np.asarray(mesh.vertices).astype(np.float32)
         if mesh.has_vertex_colors():
             vertex_colors = np.asarray(mesh.vertex_colors).astype(np.float32)
         else:
             vertex_colors = np.random.rand(vertices.shape[0], 3).astype(np.float32)
         triangles = np.asarray(mesh.triangles).astype(np.int32)
+        del mesh
 
         self.scene = rb.create_scene()
         rb.add_triangle_mesh(self.scene, vertices, triangles)
         self.geom = (triangles, vertices, vertex_colors)
 
-    def render_from_capture(self, T_cam2w: Pose, camera: Camera) -> Tuple[np.ndarray]:
+        # automatically cleanup the object if release is not called explicitly
+        self._finalizer = weakref.finalize(self, self._release, self.scene)
+
+    def render_from_capture(self, T_cam2w: Pose, camera: Camera, with_normals: bool = False,
+                            ) -> Tuple[np.ndarray]:
         T_w2cam = T_cam2w.inverse()
         ray_origins, ray_directions = compute_rays(T_cam2w, camera)
 
@@ -60,8 +72,21 @@ class Renderer:
         rgb, depth = rbutils.interpolate_rgbd_from_geometry(
             *self.geom, tri_ids, bcoords, valid,
             T_w2cam.R, T_w2cam.t, camera.width, camera.height)
+        if not with_normals:
+            return rgb, depth
 
-        return rgb, depth
+        tris = self.geom[0][tri_ids]
+        v = self.geom[1]
+        normals = np.cross(v[tris[:, 0]] - v[tris[:, 1]], v[tris[:, 0]] - v[tris[:, 2]])
+        normals /= np.linalg.norm(normals, axis=1, keepdims=True).clip(min=1e-7)
+        inverted = np.einsum('nd,nd->n', normals, ray_directions[valid]) < 0
+        normals[inverted] *= -1
+        normals = normals @ T_cam2w.inv.R.T
+        normal_map = np.zeros((*depth.shape, 3))
+        normal_map[valid.reshape(*depth.shape)] = normals
+
+        return rgb, depth, normal_map
+
 
     def compute_intersections(self, rays: Tuple) -> Tuple:
         origins, directions = rays
@@ -73,8 +98,13 @@ class Renderer:
         locations = rb.barycentric_interpolator(tri_ids, bcoords, *self.geom[:2])
         return locations, valid
 
+    @staticmethod
+    def _release(scene):
+        if scene is not None:
+            rb.release_scene(scene)
+
     def release(self):
         if self.scene is None:
             raise ValueError('Cannot release twice, create a new object.')
-        rb.release_scene(self.scene)
+        self._release(self.scene)
         self.scene = None

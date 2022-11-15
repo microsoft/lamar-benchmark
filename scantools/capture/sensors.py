@@ -2,23 +2,12 @@
 # Modified by Paul-Edouard Sarlin (ETH Zurich)
 
 from pathlib import Path
-from enum import Enum
 from typing import Union, Optional, List, Dict
 from functools import cached_property
 import numpy as np
 
 from ..utils.io import read_csv, write_csv
 from ..utils.colmap import CameraModel, CAMERA_MODEL_NAMES
-
-
-class AutoEnum(Enum):
-    """
-    When the auto operator is used, value = name
-    Copied from https://docs.python.org/3/library/enum.html#using-automatic-values
-    """
-    def _generate_next_value_(name, start, count, last_values):
-        #pylint: disable=unused-argument,no-self-argument
-        return name
 
 
 class Sensor:
@@ -63,6 +52,7 @@ CAMERA_MODEL_PARAM_NAMES = {
 }
 
 
+# TODO: add method to (un)distort points, get camera matrix
 class Camera(Sensor):
     def __init__(self,
                  camera_model: Union[CameraModel, str],
