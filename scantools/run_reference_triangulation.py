@@ -11,7 +11,8 @@ import pycolmap
 from . import logger
 from .capture import Capture
 from .proc.alignment import Paths, image_matching as imatch
-from .proc.alignment.localization import Batch2d3dMatcher, LocalizerConf, lift_points_to_3d
+from .proc.alignment.localization import Batch2d3dMatcher, LocalizerConf
+from .proc.alignment.scan import lift_points_to_3d
 from .utils.geometry import compute_epipolar_error
 
 

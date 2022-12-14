@@ -145,7 +145,7 @@ def optimize_sequence_pose_graph(poses_tracking, poses_loc, poses_init, conf: PG
         problem, loss_tracking, poses_tracking, qt_opt, conf.rel_noise_tracking)
 
     for qt in qt_opt.values():
-        problem.set_parameterization(qt[0], pyceres.QuaternionParameterization())
+        problem.set_manifold(qt[0], pyceres.QuaternionManifold())
 
     options = pyceres.SolverOptions()
     options.linear_solver_type = pyceres.LinearSolverType.SPARSE_NORMAL_CHOLESKY
@@ -367,7 +367,7 @@ def optimize_sequence_bundle(poses_tracking, poses_init, session_q,
         problem, loss_tracking, poses_tracking, qt_opt, conf.rel_noise_tracking)
 
     for q, _ in qt_opt.values():
-        problem.set_parameterization(q, pyceres.QuaternionParameterization())
+        problem.set_manifold(q, pyceres.QuaternionManifold())
 
     options = pyceres.SolverOptions()
     options.linear_solver_type = pyceres.LinearSolverType.SPARSE_NORMAL_CHOLESKY

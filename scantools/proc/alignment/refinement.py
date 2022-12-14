@@ -113,8 +113,8 @@ def add_pose_graph_factors_to_sequence(problem, loss, poses_relative, poses_opt,
         cov_tracking = np.diag(sigma_pose)**2
         factor = pyceres.factors.PoseGraphRelativeCost(*T_2to1_track.inverse().qt, cov_tracking)
         residuals.append(problem.add_residual_block(factor, loss, [*qt1, *qt2]))
-        problem.set_parameterization(qt1[0], pyceres.QuaternionParameterization())
-        problem.set_parameterization(qt2[0], pyceres.QuaternionParameterization())
+        problem.set_manifold(qt1[0], pyceres.QuaternionManifold())
+        problem.set_manifold(qt2[0], pyceres.QuaternionManifold())
     return residuals
 
 
@@ -232,7 +232,7 @@ class GlobalRefiner:
             self.points3d.add(p2D.point3D_id)
         if len(p2Ds) > 0:
             if not constant_pose:
-                self.problem.set_parameterization(qt[0], pyceres.QuaternionParameterization())
+                self.problem.set_manifold(qt[0], pyceres.QuaternionManifold())
             self.problem.set_parameter_block_constant(camera.params)
         return residuals
 
