@@ -198,5 +198,5 @@ if __name__ == '__main__':
     parser.add_argument('--max_chunk_size_us', type=float, default=20_000_000)
     parser.add_argument('--ref_id', type=str, required=True)
     args = parser.parse_args().__dict__
-    args['capture'] = Capture.load(args.pop('capture_path'), session_ids=[args['session_id', args['ref_id']]])
+    args['capture'] = Capture.load(args.pop('capture_path'), session_ids=[args['session_id'], args['ref_id']])
     run(**args)
