@@ -75,7 +75,7 @@ A Python interface that mirrors this file structure is available in `scantools.c
 
 ### 1. Session data
 
-- `sensors.txt`, `rigs.txt`, `trajectories.txt` follow [the Kapture format](https://github.com/naver/kapture/blob/main/kapture_format.adoc#2--sensors).
+- `sensors.txt`, `rigs.txt`, `trajectories.txt` follow [the Kapture format](https://github.com/naver/kapture/blob/main/kapture_format.adoc#2--sensors). However, the pose convention is reverted: `rigs.txt` contains camera-to-rig transformations and `trajectories.txt` contains sensor-to-world transformations.
 - `images.txt`, `pointclouds.txt`, `depths.txt`, `wifi.txt`, and `bt.txt` follow the specifications of their corresponding `records_*.txt` in Kapture.
 
 ### 2. Processed files
