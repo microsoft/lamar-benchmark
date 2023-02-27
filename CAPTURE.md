@@ -76,7 +76,7 @@ A Python interface that mirrors this file structure is available in `scantools.c
 ### 1. Session data
 
 - `sensors.txt`, `rigs.txt`, `trajectories.txt` follow [the Kapture format](https://github.com/naver/kapture/blob/main/kapture_format.adoc#2--sensors).
-- `images.txt`, `pointclouds.txt`, `depths.txt`, `wifi.txt`, and `bt.txt` follow the specifications of their corresponding `records_*.txt` in Kapture.
+- `images.txt`, `pointclouds.txt`, `depths.txt`, `bt.txt`, `wifi.txt`, `accel.txt`, `gravity.txt`, `gyro.txt`, and `mag.txt` follow the specifications of their corresponding `records_*.txt` in Kapture. `gravity.txt` contains gravity direction estimates (down vector in sensor frame at each timestamp) from the onboard VIO system.
 
 ### 2. Processed files
 

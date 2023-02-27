@@ -143,6 +143,40 @@ class RecordsLidar(RecordsFilePath):
     field_names = ['point_cloud_path']
 
 
+# IMU data.
+class RecordsVector3f(RecordsBase[np.ndarray]):
+    record_type = np.ndarray
+    field_names = ['x', 'y', 'z']
+
+    def record_to_list(self, record: np.ndarray) -> List[str]:
+        return list(map(str, record))
+
+    @classmethod
+    def load(cls, path: Path) -> 'RecordsVector3f':
+        table = read_csv(path)
+        records = cls()
+        for timestamp, sensor_id, *data in table:
+            assert len(data) == 3
+            records[int(timestamp), sensor_id] = np.array(
+                list(map(float, data)))
+        return records
+
+
+class RecordsAccelerometer(RecordsVector3f):
+    field_names = ['accel_x', 'accel_y', 'accel_z']
+
+
+class RecordsGravity(RecordsVector3f):
+    field_names = ['g_x', 'g_y', 'g_z']
+
+
+class RecordsGyroscope(RecordsVector3f):
+    field_names = ['gyro_x', 'gyro_y', 'gyro_z']
+
+
+class RecordsMagnetometer(RecordsVector3f):
+    field_names = ['mag_x', 'mag_y', 'mag_z']
+
 
 # New data types inherit from RecordEntry (a record) and RecordsArray (mapping of records)
 @dataclass
