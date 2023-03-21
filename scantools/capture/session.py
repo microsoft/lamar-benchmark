@@ -8,8 +8,7 @@ from .sensors import Sensors, Camera
 from .rigs import Rigs
 from .trajectories import Trajectories
 from .records import (
-    RecordsAccelerometer, RecordsBluetooth, RecordsCamera, RecordsDepth, RecordsGravity,
-    RecordsGyroscope,  RecordsLidar, RecordsMagnetometer, RecordsWifi)
+    RecordsBluetooth, RecordsCamera, RecordsDepth, RecordsIMU, RecordsLidar, RecordsWifi)
 from .proc import Proc
 from .pose import Pose
 
@@ -43,10 +42,8 @@ class Session:
     pointclouds: Optional[RecordsLidar] = None
     wifi: Optional[RecordsWifi] = None
     bt: Optional[RecordsBluetooth] = None
-    accel: Optional[RecordsAccelerometer] = None
-    gravity: Optional[RecordsGravity] = None
-    gyro: Optional[RecordsGyroscope] = None
-    mag: Optional[RecordsMagnetometer] = None
+    imu: Optional[RecordsIMU] = None
+    gravity: Optional[RecordsIMU] = None
     proc: Optional[Proc] = None
     id: Optional[str] = None
 
