@@ -99,7 +99,7 @@ class Session:
             else:
                 if attr.name in ['bt', 'wifi'] and not wireless:
                     continue
-                if attr.name in ['accel', 'gravity', 'gyro', 'mag'] and not imu:
+                if attr.name in ['gravity', 'imu'] and not imu:
                     continue
                 obj = type_.load(filepath)
             data[attr.name] = obj
