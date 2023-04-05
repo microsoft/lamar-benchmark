@@ -35,7 +35,7 @@ def plot_pnp_inliers(qname: str, refs: List[str], ret: Dict, data_root: Path, nu
 
 
 def plot_raw_matches(qname: str, refs: List[str], match_data: Dict, data_root: Path, **args):
-    match_data = {**match_data, 'inliers': np.full(len(match_data['indices']), True, np.bool)}
+    match_data = {**match_data, 'inliers': np.full(len(match_data['indices']), True, bool)}
     plot_pnp_inliers(qname, refs, match_data, data_root, **args)
 
 

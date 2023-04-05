@@ -118,7 +118,7 @@ class Triangulation(Mapping):
                 if valid[-1]:
                     ids.append(p.point3D_id)
                     xyz.append(self.reconstruction.points3D[ids[-1]].xyz)
-        return np.array(valid, np.bool), xyz, ids
+        return np.array(valid, bool), xyz, ids
 
 
 class MeshLifting(Mapping):
@@ -157,7 +157,7 @@ class MeshLifting(Mapping):
         directions = np.ascontiguousarray(directions, dtype=np.float32)
         rays = (origins, directions)
         xyz, valid = self.renderer.compute_intersections(rays)
-        return np.array(valid, np.bool), xyz
+        return np.array(valid, bool), xyz
 
     def get_points3D(self, key, point2D_indices):
         name = self.key2name[key]
@@ -225,4 +225,4 @@ class Hybrid(Mapping):
                     xyz.append(xyz_lift.pop(0))
                     ids.append(ids_lift.pop(0))
         assert len(xyz_tri) == len(ids_tri) == len(xyz_lift) == len(ids_lift) == 0
-        return np.array(valid, np.bool), xyz, ids
+        return np.array(valid, bool), xyz, ids
