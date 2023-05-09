@@ -46,7 +46,7 @@ def filter_by_radio(session_q, session_r, keys_q, keys_r, conf: RadioFilterConf)
     assert conf.frac_pairs_filter is not None
     num_pairs_filter = int(np.ceil(conf.frac_pairs_filter * len(keys_r)))
     radio_map = radio_mapping.build_radio_map(session_r, conf.window_us)
-    keep = np.full((len(keys_q), len(keys_r)), False, np.bool)
+    keep = np.full((len(keys_q), len(keys_r)), False, bool)
     keyr2idx = {k: i for i, k in enumerate(keys_r)}
     without_radios = []
     def _worker_fn(i):
