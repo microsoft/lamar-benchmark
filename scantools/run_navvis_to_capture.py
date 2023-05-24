@@ -114,8 +114,7 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
                 rig_from_cam = rig_from_world * world_from_cam
                 rigs[rig_id, sensor_id] = rig_from_cam
 
-    # Process frames (enumerate is needed since frame_id is not sequential).
-    for frame_idx, frame_id in enumerate(frame_ids):
+    for frame_id in frame_ids:
         if not nv.get_frame_valid(frame_id):
             if tile_id == 0:
                 logging.warning('Invalid frame %d.', frame_id)
@@ -130,12 +129,6 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
             for tile_id in range(num_tiles):
                 sensor_id = f'cam{camera_id}_{tiles_format}'
                 sensor_id += f'-{tile_id}' if num_tiles > 1 else ''
-                logging.info("Processing :: frame_id: %d/%d "
-                        "- cam_id: %d/%d "
-                        "- tile_id: %d/%d",
-                        frame_idx + 1, num_frames,
-                        camera_id + 1, num_cameras,
-                        tile_id + 1, num_tiles)
                 image_path = nv.get_output_image_path(frame_id, camera_id, tile_id)
                 image_subpath = image_path.resolve().relative_to(output_path.resolve())
                 images[timestamp_us, sensor_id] = str(image_subpath)
