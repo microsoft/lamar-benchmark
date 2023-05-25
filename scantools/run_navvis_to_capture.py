@@ -11,7 +11,7 @@ from . import logger
 from .scanners import NavVis
 from .scanners.navvis.camera_tiles import TileFormat
 from .capture import (
-        Capture, Session, Sensors, create_sensor, Trajectories, Pose,
+        Capture, Session, Sensors, create_sensor, Trajectories, Rigs, Pose,
         RecordsCamera, RecordsLidar, RecordBluetooth, RecordBluetoothSignal,
         RecordsBluetooth, RecordWifi, RecordWifiSignal, RecordsWifi)
 from .utils.misc import add_bool_arg
@@ -25,9 +25,36 @@ def compute_downsampling_size(size: Tuple[int], max_edge: int):
     new_size = tuple([int(round(edge * scale)) for edge in size])
     return new_size
 
+def get_pose(nv: NavVis,
+             upright: bool,
+             frame_id: int,
+             cam_id: Optional[int] = 0,
+             tile_id: Optional[int] = 0):
+    qvec, tvec = nv.get_pose(frame_id, cam_id, tile_id)
+    pose = Pose(r=qvec, t=tvec)
+    if upright and nv.get_device() == 'VLX' and (cam_id == 0 or cam_id == 'cam0'):
+        pose = fix_vlx_extrinsics(pose)
+    return pose
+
+def fix_vlx_extrinsics(pose: Pose):
+    # Camera 0 is (physically) mounted upside down on VLX.
+    # Intrinsics stay the same since they are the image center.
+    # Extrinsics should be rotated by 180 deg counter-clockwise around z.
+    fix_matrix = np.array([
+        [-1,  0,  0],
+        [ 0, -1,  0],
+        [ 0,  0,  1]
+    ])
+    new_rotmat = pose.r.as_matrix() @ fix_matrix
+    pose = Pose(r=new_rotmat, t=pose.t)
+    return pose
+
+def convert_to_us(time_s):
+    return int(round(time_s * 1_000_000))
 
 def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optional[str] = None,
-        downsample_max_edge: int = None, upright: bool = True, copy_pointcloud: bool = False):
+        downsample_max_edge: int = None, upright: bool = True, export_as_rig: bool = False,
+        copy_pointcloud: bool = False):
 
     if session_id is None:
         session_id = input_path.name
@@ -35,8 +62,14 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
 
     output_path = capture.data_path(session_id)
     nv = NavVis(input_path, output_path, tiles_format, upright)
+
+    frame_ids = nv.get_frame_ids()
+    camera_ids = nv.get_camera_indexes()
     tiles = nv.get_tiles()
-    num_tiles = len(tiles.angles)
+
+    num_frames = len(frame_ids)
+    num_cameras = len(camera_ids)
+    num_tiles = nv.get_num_tiles()
 
     K = nv.get_camera_intrinsics()
     fx, fy, cx, cy = K[[0, 1, 0, 1], [0, 1, 2, 2]]
@@ -58,42 +91,50 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
     sensors = Sensors()
     trajectory = Trajectories()
     images = RecordsCamera()
-    rigs = None  # TODO: check if relative poses are identical for all frames
-    for camera_id in nv.get_camera_ids():
+    rigs = Rigs() if export_as_rig else None
+
+    if export_as_rig:
+        # This code assumes NavVis produces consistent rigs across all frames,
+        # using `cam_id=0` as the rig base.
+        frame_id_0 = frame_ids[0]
+        rig_from_world = get_pose(nv, upright, frame_id_0, cam_id=0, tile_id=0).inverse()
+        rig_id = "navvis_rig"
+
+    for camera_id in camera_ids:
         for tile_id in range(num_tiles):
-            sensor_id = f'{camera_id}_{tiles_format}'
-            if num_tiles > 1:
-                sensor_id += f'-{tile_id}'
+            sensor_id = f'cam{camera_id}_{tiles_format}'
+            sensor_id += f'-{tile_id}' if num_tiles > 1 else ''
             sensor = create_sensor(
                 'camera', sensor_params=camera_params,
-                name=f'NavVis {device} camera-{camera_id} tile-{tiles_format} id-{tile_id}')
+                name=f'NavVis {device} camera-cam{camera_id} tile-{tiles_format} id-{tile_id}')
             sensors[sensor_id] = sensor
 
-            for frame_id in nv.get_frame_ids():
-                if not nv.get_frame_valid(frame_id):
-                    if tile_id == 0:
-                        logging.warning('Invalid frame %d.', frame_id)
-                    continue
-                qvec, tvec = nv.get_pose(frame_id, camera_id, tile_id)
-                pose = Pose(r=qvec, t=tvec)
-                if upright and device == 'VLX' and camera_id == 'cam0':
-                    # Camera 0 is (physically) mounted upside down on VLX.
-                    # Intrinsics stay the same since they are the image center.
-                    # Extrinsics should be rotated by 180 deg counter-clockwise around z.
-                    fix_matrix = np.array([
-                        [-1, 0, 0],
-                        [0, -1, 0],
-                        [0, 0, 1]
-                    ])
-                    new_rotmat = pose.r.as_matrix() @ fix_matrix
-                    pose = Pose(r=new_rotmat, t=tvec)
-                time_s = nv.get_frame_timestamp(frame_id)
-                timestamp_us = int(round(time_s * 1_000_000))
-                trajectory[timestamp_us, sensor_id] = pose
+            if export_as_rig:
+                world_from_cam = get_pose(nv, upright, frame_id_0, camera_id, tile_id)
+                rig_from_cam = rig_from_world * world_from_cam
+                rigs[rig_id, sensor_id] = rig_from_cam
 
+    for frame_id in frame_ids:
+        if not nv.get_frame_valid(frame_id):
+            if tile_id == 0:
+                logging.warning('Invalid frame %d.', frame_id)
+            continue
+        time_s = nv.get_frame_timestamp(frame_id)
+        timestamp_us = convert_to_us(time_s)
+        if export_as_rig:
+            pose = get_pose(nv, upright, frame_id, cam_id=0)
+            trajectory[timestamp_us, rig_id] = pose
+
+        for camera_id in camera_ids:
+            for tile_id in range(num_tiles):
+                sensor_id = f'cam{camera_id}_{tiles_format}'
+                sensor_id += f'-{tile_id}' if num_tiles > 1 else ''
                 image_path = nv.get_output_image_path(frame_id, camera_id, tile_id)
                 image_subpath = image_path.resolve().relative_to(output_path.resolve())
                 images[timestamp_us, sensor_id] = str(image_subpath)
+                if not export_as_rig:
+                    pose = get_pose(nv, upright, frame_id, camera_id, tile_id)
+                    trajectory[timestamp_us, sensor_id] = pose
 
     pointcloud_id = 'point_cloud_final'
     sensors[pointcloud_id] = create_sensor('lidar', name='final NavVis point cloud')
@@ -106,7 +147,7 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
     sensor = create_sensor('wifi', sensor_params=[], name='NavVis M6 WiFi sensor')
     sensors[sensor_id] = sensor
     for measurement in nv.read_wifi():
-        timestamp_us = int(round(measurement.timestamp_s * 1_000_000))
+        timestamp_us = convert_to_us(measurement.timestamp_s)
         mac_addr = measurement.mac_address
         freq_khz = measurement.center_channel_freq_khz
         rssi_dbm = measurement.signal_strength_dbm
@@ -122,7 +163,7 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
     sensor = create_sensor('bluetooth', sensor_params=[], name='NavVis M6 bluetooth sensor')
     sensors[sensor_id] = sensor
     for measurement in nv.read_bluetooth():
-        timestamp_us = int(round(measurement.timestamp_s * 1_000_000))
+        timestamp_us = convert_to_us(measurement.timestamp_s)
         id = f'{measurement.guid}:{measurement.major_version}:{measurement.minor_version}'
         rssi_dbm = measurement.signal_strength_dbm
         if (timestamp_us, sensor_id) not in bluetooth_signals:
@@ -164,6 +205,7 @@ if __name__ == '__main__':
     parser.add_argument('--session_id', type=str)
     parser.add_argument('--downsample_max_edge', type=int, default=None)
     add_bool_arg(parser, 'upright', default=True)
+    add_bool_arg(parser, 'export_as_rig', default=False)
     parser.add_argument('--copy_pointcloud', action='store_true')
     args = parser.parse_args().__dict__
 
