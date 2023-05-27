@@ -39,6 +39,11 @@ def compute_rays(T_cam2w: Pose, camera: Camera, stride: int = 1):
     return origins, directions
 
 
+def release_scene(scene):
+    logger.info("Releasing scene")
+    rb.release_scene(scene)
+
+
 class Renderer:
     def __init__(self, mesh: Union[Path, o3d.geometry.TriangleMesh]):
         if isinstance(mesh, Path):
@@ -52,13 +57,17 @@ class Renderer:
             vertex_colors = np.random.rand(vertices.shape[0], 3).astype(np.float32)
         triangles = np.asarray(mesh.triangles).astype(np.int32)
         del mesh
+        logging.info("Mesh converted to numpy - %d vertices and %d triangles", vertices.shape[0], triangles.shape[0])
 
+        logging.info("Creating scene...")
         self.scene = rb.create_scene()
         rb.add_triangle_mesh(self.scene, vertices, triangles)
         self.geom = (triangles, vertices, vertex_colors)
 
+        logging.info("Renderer successfully created.")
+
         # automatically cleanup the object if release is not called explicitly
-        self._finalizer = weakref.finalize(self, self._release, self.scene)
+        self._finalizer = weakref.finalize(self, release_scene, self.scene)
 
     def render_from_capture(self, T_cam2w: Pose, camera: Camera, with_normals: bool = False,
                             ) -> Tuple[np.ndarray]:
@@ -98,13 +107,8 @@ class Renderer:
         locations = rb.barycentric_interpolator(tri_ids, bcoords, *self.geom[:2])
         return locations, valid
 
-    @staticmethod
-    def _release(scene):
-        if scene is not None:
-            rb.release_scene(scene)
-
     def release(self):
         if self.scene is None:
             raise ValueError('Cannot release twice, create a new object.')
-        self._release(self.scene)
+        release_scene(self.scene)
         self.scene = None

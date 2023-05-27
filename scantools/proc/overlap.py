@@ -30,7 +30,7 @@ def overlay(overlap: np.ndarray, image: np.ndarray):
 
 
 class OverlapTracer:
-    def __init__(self, renderer: Renderer, stride: int = 1, num_rays: Optional[float] = None):
+    def __init__(self, renderer: Renderer, stride: int = 1, num_rays: Optional[int] = None):
         self.renderer = renderer
         self.stride = stride
         self.num_rays = num_rays
@@ -100,7 +100,8 @@ class OverlapTracer:
         if is_self:
             keys_r, session_r, poses_r = keys_q, session_q, poses_q
 
-        overlap_matrix = np.full((len(keys_q), len(keys_r)), -1, float)
+        logger.info("Ray tracing for trajectory overlap between %d keys_q and %d keys_r", len(keys_q), len(keys_r))
+        overlap_matrix = np.full((len(keys_q), len(keys_r)), -1, np.float32)
         overlap_matrix[discard] = 0
 
         # cache the image poses as they might be compositions of rig poses
@@ -159,7 +160,7 @@ def compute_overlaps_for_sequence(capture: Capture, id_q: str, id_ref: str,
                                   keys_q: Optional[List] = None, keys_ref: Optional[List] = None,
                                   T_q: Optional[Trajectories] = None,
                                   num_rays: int = 60,
-                                  do_caching: bool = True) -> Tuple[List[np.ndarray]]:
+                                  do_caching: bool = False) -> Tuple[List[np.ndarray]]:
     session_q = capture.sessions[id_q]
     if keys_q is None:
         keys_q = sorted(session_q.images.key_pairs())
@@ -203,7 +204,8 @@ def compute_overlaps_for_sequence(capture: Capture, id_q: str, id_ref: str,
         if do_caching and sub_mesh_path in TRACERS:
             tracer = TRACERS[sub_mesh_path]
         else:
-            tracer = OverlapTracer(Renderer(read_mesh(sub_mesh_path)), num_rays=num_rays)
+            mesh = read_mesh(sub_mesh_path)
+            tracer = OverlapTracer(Renderer(mesh), num_rays=num_rays)
             if do_caching:
                 TRACERS[sub_mesh_path] = tracer
 
