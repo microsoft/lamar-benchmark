@@ -196,8 +196,8 @@ def compute_overlaps_for_sequence(capture: Capture, id_q: str, id_ref: str,
         valid_image_indices_list = [np.array(list(range(len(keys_ref))))]
         selected_keys_ref_list = [keys_ref]
 
-    ov_q2r = np.zeros([len(keys_q), len(keys_ref)])
-    ov_r2q = np.zeros([len(keys_ref), len(keys_q)])
+    ov_q2r = np.zeros([len(keys_q), len(keys_ref)], dtype=np.float32)
+    ov_r2q = np.zeros([len(keys_ref), len(keys_q)], dtype=np.float32)
     for sub_info in zip(sub_mesh_id_list, valid_image_indices_list, selected_keys_ref_list):
         sub_mesh_id, valid_image_indices, selected_keys_ref = sub_info
         sub_mesh_path = capture.proc_path(id_ref) / session_ref.proc.meshes[sub_mesh_id]
