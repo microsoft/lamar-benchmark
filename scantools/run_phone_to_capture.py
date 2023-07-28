@@ -168,8 +168,12 @@ def parse_depth_files(input_dir: Path,
         if timestamp not in images:
             continue
 
-        confidence = cv2.imread(
-            depth_path.with_suffix('.confidence.png').as_posix(), cv2.IMREAD_ANYDEPTH)
+        confidence_path = depth_path.with_suffix('.confidence.png')
+        if not confidence_path.exists():
+            # This can happen if the capture app exits before the depth is fully written.
+            logger.warning('No confidence for depth %s, skipping this timestamp.', depth_path)
+            continue
+        confidence = cv2.imread(confidence_path.as_posix(), cv2.IMREAD_ANYDEPTH)
         depth = np.fromfile(depth_path, dtype=np.float32).reshape(confidence.shape)
 
         confidence = np.rot90(confidence, rots90[timestamp])
