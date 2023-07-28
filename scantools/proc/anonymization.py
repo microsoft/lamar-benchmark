@@ -78,10 +78,10 @@ def blur_detections(image: np.ndarray,
 class BrighterAIAnonymizer:
     labels_filename = 'labels.json'
 
-    def __init__(self, apikey):
+    def __init__(self, apikey, **kwargs):
         self.apikey = apikey
         self.url = Settings().redact_online_url
-        self.args = redact.JobArguments(single_frame_optimized=True)
+        self.args = redact.JobArguments(**kwargs)
 
     def query_frame_labels(self, paths, tmp_dir):
         labels_path = tmp_dir / self.labels_filename
@@ -116,6 +116,11 @@ class BrighterAIAnonymizer:
         return labels
 
     def face_is_valid(self, face, image_shape):
+        if not self.args.single_frame_optimized:
+            if face.score is None:
+                logger.warning("Found face with score=None.")
+                return True
+            return face.score >= 0.5
         mx, my, Mx, My = face.bounding_box
         area_ratio = (
             (Mx - mx + 1) * (My - my + 1) / (image_shape[0] * image_shape[1]))
