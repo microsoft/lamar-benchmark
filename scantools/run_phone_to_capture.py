@@ -160,8 +160,7 @@ def parse_depth_files(input_dir: Path,
                       data_dir: Path,
                       sensors: Sensors,
                       images: RecordsCamera,
-                      rots90: Dict[int, int],
-                      min_confidence: int = 1) -> RecordsDepth:
+                      rots90: Dict[int, int]) -> RecordsDepth:
     records = RecordsDepth()
     paths = list(input_dir.glob('*.bin'))
     for depth_path in paths:
@@ -172,7 +171,8 @@ def parse_depth_files(input_dir: Path,
         confidence = cv2.imread(
             depth_path.with_suffix('.confidence.png').as_posix(), cv2.IMREAD_ANYDEPTH)
         depth = np.fromfile(depth_path, dtype=np.float32).reshape(confidence.shape)
-        depth[confidence < min_confidence] = 0
+
+        confidence = np.rot90(confidence, rots90[timestamp])
         depth = np.rot90(depth, rots90[timestamp])
 
         camera_id, = images[timestamp].keys()
@@ -190,6 +190,7 @@ def parse_depth_files(input_dir: Path,
         out_path = data_dir / subpath
         out_path.parent.mkdir(exist_ok=True, parents=True)
         write_depth(out_path, depth)
+        write_image(out_path.with_suffix('.confidence.png'), confidence)
         records[timestamp, depth_id] = subpath
     return records
 
