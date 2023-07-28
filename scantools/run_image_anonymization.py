@@ -36,6 +36,8 @@ def blur_image_group(capture: Capture, session: Session, keys: List[KeyType],
                      tmp_dir: Path, anonymizer: BrighterAIAnonymizer,
                      output_path: Optional[Path] = None) -> int:
     subpaths = [session.images[key] for key in sorted(keys)]
+    tmp_dir.mkdir(exist_ok=True, parents=True)
+    (tmp_dir / 'list.txt').write_text('\n'.join(subpaths))
     input_paths = [capture.data_path(session.id) / s for s in subpaths]
     output_paths = None if output_path is None else [output_path / s for s in subpaths]
     return anonymizer.blur_image_group(input_paths, tmp_dir, output_paths)
@@ -78,9 +80,18 @@ def run(capture: Capture, session_id: str, apikey: str,
         group_index = 0
         group_size = 0
         group_keys = []
+        image_size = None
         for k in sorted(key_groups.pop(id_)):
+            # We also catch changes in image orientation due to the gravity correction.
+            rotated = False
+            if session.device == session.Device.PHONE:
+                image_size_ = tuple(session.sensors[k[1]].size)
+                if image_size is not None and image_size != image_size_:
+                    rotated = True
+                image_size = image_size_
+
             size = (capture.data_path(session_id) / session.images[k]).stat().st_size
-            if (group_size + size) > 1.8e9:  # 1.8GB
+            if rotated or (group_size + size) > 1.8e9:  # 1.8GB
                 key_groups[f'{id_}/{group_index}'] = group_keys
                 group_size = 0
                 group_keys = []
@@ -110,7 +121,7 @@ def run(capture: Capture, session_id: str, apikey: str,
     counter = Counter()
     for c, a in zip(counts, worker_args):
         if c is None:
-            logger.warning('Anynonymization failed for %s', a[1].name)
+            logger.warning('Anynonymization failed for %s', a[1])
             continue
         counter += c
     logger.info('Detected %s in %d images.', str(dict(counter)), len(all_keys))
