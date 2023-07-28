@@ -1,7 +1,7 @@
 import logging
 from pathlib import Path
 from typing import List, Tuple, Optional
-import subprocess
+import tarfile
 import cv2
 import numpy as np
 
@@ -10,8 +10,8 @@ from ..utils.io import read_image, write_image
 logger = logging.getLogger(__name__)
 
 try:
-    import redact
     from redact.settings import Settings
+    import redact.v3 as redact
 except ImportError as e:
     logger.error('Could not import Brighter.AI API - did you install it?\n'
                  'pip install git+https://github.com/brighter-ai/redact-client.git')
@@ -90,33 +90,18 @@ class BrighterAIAnonymizer:
             with open(labels_path, 'r') as fid:
                 labels = redact.JobLabels.parse_raw(fid.read())
             return labels
-        logger.info('Calling API with %d images in %s.', len(paths), tmp_dir.name)
+        logger.info('Calling API with %d images in %s.', len(paths), tmp_dir)
 
-        # write image list
-        list_path = tmp_dir / 'list.txt'
         tmp_dir.mkdir(exist_ok=True, parents=True)
-        with open(list_path, 'w') as fid:
-            for p in paths:
-                fid.write(f"file '{p.resolve()}'\n")
-
-        # pack into video
-        video_path = tmp_dir / f'{tmp_dir.name}.mp4'
-        cmd = [
-            'ffmpeg',
-            '-y',
-            '-safe', '0',
-            '-f', 'concat',
-            '-i', str(list_path),
-            '-framerate', '24',
-            '-codec', 'copy',
-            str(video_path),
-        ]
-        subprocess.run(cmd, check=True, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
+        tar_path = tmp_dir / f'{tmp_dir.name}.tar'
+        with tarfile.open(tar_path, 'w') as tar:
+            for i, p in enumerate(paths):
+                tar.add(p, arcname=str(i) + p.suffix)
 
         # call the anonymization API
         instance = redact.RedactInstance.create(
-            service='blur', out_type='videos', redact_url=self.url, api_key=self.apikey)
-        with open(video_path, 'rb') as fid:
+            service='blur', out_type='archives', redact_url=self.url, api_key=self.apikey)
+        with open(tar_path, 'rb') as fid:
             job = instance.start_job(file=fid, job_args=self.args)
             job.wait_until_finished()
         status = job.get_status()
@@ -127,7 +112,7 @@ class BrighterAIAnonymizer:
 
         with open(labels_path, 'w') as fid:
             fid.write(labels.json())
-        video_path.unlink()
+        tar_path.unlink()
         return labels
 
     def face_is_valid(self, face, image_shape):
@@ -141,12 +126,17 @@ class BrighterAIAnonymizer:
         labels = self.query_frame_labels(input_paths, tmp_dir)
         if labels is None:
             return None
+        inplace = output_paths is None
 
+        assert len(input_paths) == len(labels.frames), (tmp_dir, len(input_paths))
         counts = {'faces': 0, 'plates': 0}
         # actually blur the images
         for idx, image_path in enumerate(input_paths):
             label = labels.frames[idx]
             assert label.index == (idx+1)
+            if not label.faces and not label.license_plates and inplace:
+                continue
+
             image = read_image(image_path)
             faces = [f for f in label.faces if self.face_is_valid(f, image.shape)]
             plates = [f for f in label.license_plates if f.score >= 0.6]
@@ -159,7 +149,6 @@ class BrighterAIAnonymizer:
             counts['faces'] += len(faces)
             counts['plates'] += len(plates)
 
-            inplace = output_paths is None
             if inplace:
                 if len(faces) > 0 or len(plates) > 0:
                     write_image(image_path, blurred)
@@ -167,5 +156,5 @@ class BrighterAIAnonymizer:
                 out = output_paths[idx]
                 out.parent.mkdir(exist_ok=True, parents=True)
                 write_image(out, blurred)
-        logger.info('Finished anonymization in %s', tmp_dir.name)
+        logger.info('Finished anonymization in %s', tmp_dir)
         return counts
