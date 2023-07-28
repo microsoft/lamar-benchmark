@@ -320,7 +320,8 @@ def run(input_path: Path,
         capture: Capture,
         session_id: str,
         visualize: bool = False,
-        downsample_framerate: Optional[float] = 5) -> List[str]:
+        downsample_framerate: Optional[float] = 5,
+        split_sequence_on_failure: bool = True) -> List[str]:
     assert session_id not in capture.sessions, session_id
 
     images_as_video = (input_path / 'images.mp4').exists()
@@ -338,10 +339,14 @@ def run(input_path: Path,
         mlp = MeshlabProject()
 
     poses, cameras, rots90 = parse_pose_file(input_path / 'poses.txt')
-    timestamp_chunks = chunk_tracking_failures(poses)
+    if split_sequence_on_failure:
+        chunks_timestamps = chunk_tracking_failures(poses)
+        chunks_id_timestamps = [
+            (f'{session_id}_{i:03}', t) for i, t in enumerate(chunks_timestamps)]
+    else:
+        chunks_id_timestamps = [(session_id, sorted(poses.keys()))]
     chunk_ids = []
-    for i, timestamps in enumerate(timestamp_chunks):
-        chunk_id = f'{session_id}_{i:03}'
+    for chunk_id, timestamps in chunks_id_timestamps:
         if downsample_framerate is not None:
             timestamps = keyframe_selection(timestamps, downsample_framerate)
         logger.info('Importing sub-session %s', chunk_id)
