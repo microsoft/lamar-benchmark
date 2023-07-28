@@ -300,6 +300,16 @@ def timestamps_to_session(timestamps: List[int],
     if bt_path.exists():
         bluetooth_signals = parse_bluetooth_file(bt_path, timestamps, sensors)
 
+    for filename in [
+            'accelerometer.txt',
+            'gyroscope.txt',
+            'magnetometer.txt',
+            'fused_imu.txt',
+            'location.txt',
+        ]:
+        if (input_path / filename).exists():
+            shutil.copy(input_path / filename, capture.session_path(session_id))
+
     session = Session(
         sensors=sensors, trajectories=trajectory,
         images=images, bt=bluetooth_signals, depths=depths)
