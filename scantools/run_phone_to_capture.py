@@ -26,6 +26,7 @@ def extract_frames_from_video(input_dir: Path, images_dir: Path):
     frames_format = 'out-%012d.jpg'
     cmd = [
         'ffmpeg',
+        '-hide_banner', '-loglevel', 'warning', '-nostats',
         '-i', video_path.as_posix(),
         '-vsync', '0',
         '-qmin', '1',
@@ -37,7 +38,7 @@ def extract_frames_from_video(input_dir: Path, images_dir: Path):
     # Extract timestamps.
     cmd = [
         'ffprobe',
-        '-v', 'quiet',
+        '-hide_banner', '-loglevel', 'warning',
         '-f', 'lavfi',
         '-i', f'movie={video_path.as_posix()}',
         '-show_entries', 'frame=pkt_pts',
