@@ -134,7 +134,7 @@ class BrighterAIAnonymizer:
         mx, my, Mx, My = face.bounding_box
         area_ratio = (
             (Mx - mx + 1) * (My - my + 1) / (image_shape[0] * image_shape[1]))
-        return face.score >= 0.90 or (face.score >= 0.50 and area_ratio < 0.04)
+        return face.score >= 0.40 and area_ratio < 0.04
 
     def blur_image_group(self, input_paths: List[Path], tmp_dir: Path,
                          output_paths: Optional[List[Path]] = None):
