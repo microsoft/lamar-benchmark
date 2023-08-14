@@ -134,6 +134,12 @@ class BrighterAIAnonymizer:
         mx, my, Mx, My = face.bounding_box
         area_ratio = (
             (Mx - mx + 1) * (My - my + 1) / (image_shape[0] * image_shape[1]))
+        # We use a conservative detection threshold of 40%. Regardless of the 
+        # threshold, we noticed a significant number of false positives, notably
+        # around reflections / bright regions in HoloLens images. These
+        # detections cover a significant part of the image, and, given that most
+        # of our data is captured at least a few meters away from bystanders, we
+        # filter out all detection convering >=4% of total area.
         return face.score >= 0.40 and area_ratio < 0.04
 
     def blur_image_group(self, input_paths: List[Path], tmp_dir: Path,
