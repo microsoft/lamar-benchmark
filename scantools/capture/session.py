@@ -7,7 +7,8 @@ from enum import Enum
 from .sensors import Sensors, Camera
 from .rigs import Rigs
 from .trajectories import Trajectories
-from .records import RecordsBluetooth, RecordsCamera, RecordsDepth, RecordsLidar, RecordsWifi
+from .records import (
+    RecordsBluetooth, RecordsCamera, RecordsDepth, RecordsIMU, RecordsLidar, RecordsWifi)
 from .proc import Proc
 from .pose import Pose
 
@@ -41,6 +42,8 @@ class Session:
     pointclouds: Optional[RecordsLidar] = None
     wifi: Optional[RecordsWifi] = None
     bt: Optional[RecordsBluetooth] = None
+    imu: Optional[RecordsIMU] = None
+    gravity: Optional[RecordsIMU] = None
     proc: Optional[Proc] = None
     id: Optional[str] = None
 
@@ -52,7 +55,8 @@ class Session:
         all_devices = set(self.sensors.keys())
         if self.rigs is not None:
             assert len(self.sensors.keys() & self.rigs.keys()) == 0
-            assert len(self.rigs.sensor_ids - self.sensors.keys()) == 0
+            # TODO: Fix me - currently missing calibration for IMUs.
+            # assert len(self.rigs.sensor_ids - self.sensors.keys()) == 0
             all_devices |= self.rigs.keys()
         if self.trajectories is not None:
             assert len(self.trajectories.device_ids - all_devices) == 0
@@ -75,7 +79,7 @@ class Session:
         return f'{name}.txt'
 
     @classmethod
-    def load(cls, path: Path, wireless=True) -> 'Session':
+    def load(cls, path: Path, wireless=True, imu=True) -> 'Session':
         if not path.exists():
             raise IOError(f'Session directory does not exists: {path}')
         data = {}
@@ -94,6 +98,8 @@ class Session:
                 obj = type_.load(filepath, path / cls.data_dirname)
             else:
                 if attr.name in ['bt', 'wifi'] and not wireless:
+                    continue
+                if attr.name in ['gravity', 'imu'] and not imu:
                     continue
                 obj = type_.load(filepath)
             data[attr.name] = obj

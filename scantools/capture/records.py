@@ -143,6 +143,24 @@ class RecordsLidar(RecordsFilePath):
     field_names = ['point_cloud_path']
 
 
+# IMU data.
+class RecordsIMU(RecordsBase[np.ndarray]):
+    record_type = np.ndarray
+    field_names = ['x', 'y', 'z']
+
+    def record_to_list(self, record: np.ndarray) -> List[str]:
+        return list(map(str, record))
+
+    @classmethod
+    def load(cls, path: Path) -> 'RecordsIMU':
+        table = read_csv(path)
+        records = cls()
+        for timestamp, sensor_id, *data in table:
+            assert len(data) == 3
+            records[int(timestamp), sensor_id] = np.array(
+                list(map(float, data)))
+        return records
+
 
 # New data types inherit from RecordEntry (a record) and RecordsArray (mapping of records)
 @dataclass
