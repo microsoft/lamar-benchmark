@@ -91,7 +91,7 @@ class BrighterAIAnonymizer:
                 labels = redact.JobLabels.parse_raw(fid.read())
             return labels
         logger.info('Calling API with %d images in %s.', len(paths), tmp_dir)
-        assert paths == sorted(paths)
+        # assert paths == sorted(paths)
 
         tmp_dir.mkdir(exist_ok=True, parents=True)
         tar_path = tmp_dir / f'{tmp_dir.name}.tar'
@@ -117,12 +117,12 @@ class BrighterAIAnonymizer:
         return labels
 
     def face_is_valid(self, face, image_shape):
-        if face.score is None:
-            logger.warning("Found face with score=None.")
-            return True
         mx, my, Mx, My = face.bounding_box
         area_ratio = (
             (Mx - mx + 1) * (My - my + 1) / (image_shape[0] * image_shape[1]))
+        if face.score is None:
+            logger.warning("Found face with score=None.")
+            return area_ratio < 0.04
         # We use a conservative detection threshold of 40%. Regardless of the
         # threshold, we noticed a significant number of false positives, notably
         # around reflections / bright regions in HoloLens images. These

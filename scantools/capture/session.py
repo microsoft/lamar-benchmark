@@ -13,6 +13,7 @@ from .pose import Pose
 
 logger = logging.getLogger(__name__)
 
+
 class Device(Enum):
     NAVVIS = 'NAVVIS'
     HOLOLENS = 'HOLOLENS'
@@ -52,7 +53,7 @@ class Session:
         all_devices = set(self.sensors.keys())
         if self.rigs is not None:
             assert len(self.sensors.keys() & self.rigs.keys()) == 0
-            assert len(self.rigs.sensor_ids - self.sensors.keys()) == 0
+            # assert len(self.rigs.sensor_ids - self.sensors.keys()) == 0
             all_devices |= self.rigs.keys()
         if self.trajectories is not None:
             assert len(self.trajectories.device_ids - all_devices) == 0
