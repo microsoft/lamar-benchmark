@@ -75,8 +75,25 @@ def blur_detections(image: np.ndarray,
     return blurred, mask
 
 
+def score_threshold(area: float,
+                    score_min: float = 0.3,
+                    score_max: float = 0.9,
+                    area_min: float = 0.001,
+                    area_max: float = 0.2) -> float:
+    t = np.log(area / area_min) / np.log(area_max / area_min)
+    t = np.clip(t, a_min=0, a_max=1)
+    return score_min + (score_max - score_min) * t
+
+
+def get_box_area_ratio(bbox, image_shape):
+    mx, my, Mx, My = bbox
+    return (Mx - mx + 1) * (My - my + 1) / (image_shape[0] * image_shape[1])
+
+
 class BrighterAIAnonymizer:
     labels_filename = 'labels.json'
+    min_face_score = 0.3
+    min_lp_score = 0.6
 
     def __init__(self, apikey, **kwargs):
         self.apikey = apikey
@@ -91,7 +108,6 @@ class BrighterAIAnonymizer:
                 labels = redact.JobLabels.parse_raw(fid.read())
             return labels
         logger.info('Calling API with %d images in %s.', len(paths), tmp_dir)
-        assert paths == sorted(paths)
 
         tmp_dir.mkdir(exist_ok=True, parents=True)
         tar_path = tmp_dir / f'{tmp_dir.name}.tar'
@@ -120,16 +136,8 @@ class BrighterAIAnonymizer:
         if face.score is None:
             logger.warning("Found face with score=None.")
             return True
-        mx, my, Mx, My = face.bounding_box
-        area_ratio = (
-            (Mx - mx + 1) * (My - my + 1) / (image_shape[0] * image_shape[1]))
-        # We use a conservative detection threshold of 40%. Regardless of the
-        # threshold, we noticed a significant number of false positives, notably
-        # around reflections / bright regions in HoloLens images. These
-        # detections cover a significant part of the image, and, given that most
-        # of our data is captured at least a few meters away from bystanders, we
-        # filter out all detection convering >=4% of total area.
-        return face.score >= 0.40 and area_ratio < 0.04
+        area_ratio = get_box_area_ratio(face.bounding_box, image_shape)
+        return face.score > score_threshold(area_ratio, score_min=self.min_face_score)
 
     def blur_image_group(self, input_paths: List[Path], tmp_dir: Path,
                          output_paths: Optional[List[Path]] = None):
@@ -149,7 +157,7 @@ class BrighterAIAnonymizer:
 
             image = read_image(image_path)
             faces = [f for f in label.faces if self.face_is_valid(f, image.shape)]
-            plates = [f for f in label.license_plates if f.score >= 0.6]
+            plates = [f for f in label.license_plates if f.score >= self.min_lp_score]
 
             blurred, _ = blur_detections(image, [f.bounding_box for f in faces])
             blurred, _ = blur_detections(
