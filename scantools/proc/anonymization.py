@@ -1,9 +1,13 @@
+import json
 import logging
 from pathlib import Path
 from typing import List, Tuple, Optional
 import tarfile
 import cv2
 import numpy as np
+import torch
+import torchvision
+from tqdm import tqdm
 
 from ..utils.io import read_image, write_image
 
@@ -90,8 +94,107 @@ def get_box_area_ratio(bbox, image_shape):
     return (Mx - mx + 1) * (My - my + 1) / (image_shape[0] * image_shape[1])
 
 
-class BrighterAIAnonymizer:
+class BaseAnonymizer:
     labels_filename = 'labels.json'
+    min_face_score = None
+
+    def face_is_valid(self, face, image_shape):
+        if not isinstance(face, dict):
+            face = face.dict()
+        if face['score'] is None:
+            logger.warning('Found face with score=None.')
+            return True
+        area_ratio = get_box_area_ratio(face['bounding_box'], image_shape)
+        return face['score'] > score_threshold(area_ratio, score_min=self.min_face_score)
+
+
+class EgoBlurAnonymizer(BaseAnonymizer):
+    min_face_score = 0.4
+    min_lp_score = 0.99
+
+    def __init__(self, device=None):
+        if device is None:
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.device = device
+
+        hub_dir = torch.hub.get_dir()
+        face_path = Path(hub_dir, 'ego_blur_face.jit')
+        if not face_path.exists():
+            raise FileNotFoundError(
+                f'Could not find the EgoBlur Face model at {face_path}. '
+                'Download it from https://www.projectaria.com/tools/egoblur/')
+        lp_path = Path(hub_dir, 'ego_blur_lp.jit')
+        if not face_path.exists():
+            raise FileNotFoundError(
+                f'Could not find the EgoBlur License Plate model at {lp_path}. '
+                'Download it from https://www.projectaria.com/tools/egoblur/')
+        self.face_detector = torch.jit.load(face_path, map_location='cpu').to(self.device).eval()
+        self.lp_detector = torch.jit.load(lp_path, map_location='cpu').to(self.device).eval()
+
+    def get_detections(self, detector, image_tensor: torch.Tensor, nms_iou_threshold: float = 0.3):
+        with torch.no_grad():
+            detections = detector(image_tensor)
+        boxes, _, scores, _ = detections  # returns boxes, labels, scores, dims
+        nms_keep_idx = torchvision.ops.nms(boxes, scores, nms_iou_threshold)
+        boxes = boxes[nms_keep_idx]
+        scores = scores[nms_keep_idx]
+        boxes = boxes.cpu().numpy().tolist()
+        scores = scores.cpu().numpy().tolist()
+        return [dict(bounding_box=b, score=s) for b, s in zip(boxes, scores)]
+
+    def blur_image_group(self, input_paths: List[Path], tmp_dir: Path,
+                         output_paths: Optional[List[Path]] = None):
+        labels_path = tmp_dir / self.labels_filename
+        if labels_path.exists():
+            logger.info('Reading labels %s', labels_path)
+            labels_cached = json.loads(labels_path.read_text())['frames']
+            assert len(input_paths) == len(labels_cached), (tmp_dir, len(input_paths))
+            labels = None
+        else:
+            labels_cached = None
+            labels = []
+
+        inplace = output_paths is None
+
+        counts = {'faces': 0, 'plates': 0}
+        # actually blur the images
+        for idx, image_path in enumerate(tqdm(input_paths)):
+            image = read_image(image_path)
+            if labels_cached is None:
+                image_tensor = torch.from_numpy(np.transpose(image, (2, 0, 1))).flip(0)
+                image_tensor = image_tensor.to(self.device)
+                faces = self.get_detections(self.face_detector, image_tensor)
+                plates = self.get_detections(self.lp_detector, image_tensor)
+                labels.append(dict(faces=faces, license_plates=plates))
+            else:
+                faces = labels_cached[idx]['faces']
+                plates = labels_cached[idx]['license_plates']
+
+            faces = [f for f in faces if self.face_is_valid(f, image.shape)]
+            plates = [f for f in plates if f['score'] >= self.min_lp_score]
+
+            blurred, _ = blur_detections(image, [f['bounding_box'] for f in faces])
+            blurred, _ = blur_detections(
+                blurred, [f['bounding_box'] for f in plates], blend_ksize_multiplier=0)
+
+            assert blurred.shape == image.shape and blurred.dtype == image.dtype
+            counts['faces'] += len(faces)
+            counts['plates'] += len(plates)
+
+            if inplace:
+                if len(faces) > 0 or len(plates) > 0:
+                    write_image(image_path, blurred)
+            else:
+                out = output_paths[idx]
+                out.parent.mkdir(exist_ok=True, parents=True)
+                write_image(out, blurred)
+        if labels is not None:
+            labels_path.write_text(json.dumps(dict(frames=labels)))
+        logger.info('Finished anonymization in %s', tmp_dir)
+        return counts
+
+
+class BrighterAIAnonymizer(BaseAnonymizer):
     min_face_score = 0.3
     min_lp_score = 0.6
 
@@ -131,13 +234,6 @@ class BrighterAIAnonymizer:
             fid.write(labels.json())
         tar_path.unlink()
         return labels
-
-    def face_is_valid(self, face, image_shape):
-        if face.score is None:
-            logger.warning("Found face with score=None.")
-            return True
-        area_ratio = get_box_area_ratio(face.bounding_box, image_shape)
-        return face.score > score_threshold(area_ratio, score_min=self.min_face_score)
 
     def blur_image_group(self, input_paths: List[Path], tmp_dir: Path,
                          output_paths: Optional[List[Path]] = None):
