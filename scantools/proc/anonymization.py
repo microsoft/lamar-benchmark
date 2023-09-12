@@ -83,7 +83,7 @@ def score_threshold(area: float,
                     score_min: float = 0.3,
                     score_max: float = 0.9,
                     area_min: float = 0.001,
-                    area_max: float = 0.2) -> float:
+                    area_max: float = 0.15) -> float:
     t = np.log(area / area_min) / np.log(area_max / area_min)
     t = np.clip(t, a_min=0, a_max=1)
     return score_min + (score_max - score_min) * t
@@ -97,6 +97,7 @@ def get_box_area_ratio(bbox, image_shape):
 class BaseAnonymizer:
     labels_filename = 'labels.json'
     min_face_score = None
+    max_face_score = None
 
     def face_is_valid(self, face, image_shape):
         if not isinstance(face, dict):
@@ -105,11 +106,14 @@ class BaseAnonymizer:
             logger.warning('Found face with score=None.')
             return True
         area_ratio = get_box_area_ratio(face['bounding_box'], image_shape)
-        return face['score'] > score_threshold(area_ratio, score_min=self.min_face_score)
+        return face['score'] > score_threshold(
+            area_ratio, score_min=self.min_face_score,
+            score_max=self.max_face_score)
 
 
 class EgoBlurAnonymizer(BaseAnonymizer):
     min_face_score = 0.4
+    max_face_score = 0.9
     min_lp_score = 0.99
 
     def __init__(self, device=None):
@@ -131,13 +135,23 @@ class EgoBlurAnonymizer(BaseAnonymizer):
         self.face_detector = torch.jit.load(face_path, map_location='cpu').to(self.device).eval()
         self.lp_detector = torch.jit.load(lp_path, map_location='cpu').to(self.device).eval()
 
-    def get_detections(self, detector, image_tensor: torch.Tensor, nms_iou_threshold: float = 0.3):
+    def get_detections(self, detector, image_tensor: torch.Tensor,
+                       nms_iou_threshold: float = 0.3, max_image_size: Optional[int] = None):
+        size = image_tensor.shape[-2:]
+        scale = None
+        if max_image_size is not None and max(size) > max_image_size:
+            scale = max_image_size / max(size)
+            size_new = [int(side*scale) for side in size]
+            image_tensor = torchvision.transforms.functional.resize(
+                image_tensor, size_new, antialias=True)
         with torch.no_grad():
             detections = detector(image_tensor)
         boxes, _, scores, _ = detections  # returns boxes, labels, scores, dims
         nms_keep_idx = torchvision.ops.nms(boxes, scores, nms_iou_threshold)
         boxes = boxes[nms_keep_idx]
         scores = scores[nms_keep_idx]
+        if scale is not None:
+            boxes /= scale
         boxes = boxes.cpu().numpy().tolist()
         scores = scores.cpu().numpy().tolist()
         return [dict(bounding_box=b, score=s) for b, s in zip(boxes, scores)]
@@ -164,7 +178,8 @@ class EgoBlurAnonymizer(BaseAnonymizer):
                 image_tensor = torch.from_numpy(np.transpose(image, (2, 0, 1))).flip(0)
                 image_tensor = image_tensor.to(self.device)
                 faces = self.get_detections(self.face_detector, image_tensor)
-                plates = self.get_detections(self.lp_detector, image_tensor)
+                plates = self.get_detections(self.lp_detector, image_tensor,
+                                             max_image_size=640)
                 labels.append(dict(faces=faces, license_plates=plates))
             else:
                 faces = labels_cached[idx]['faces']
@@ -196,6 +211,7 @@ class EgoBlurAnonymizer(BaseAnonymizer):
 
 class BrighterAIAnonymizer(BaseAnonymizer):
     min_face_score = 0.3
+    max_face_score = 0.98
     min_lp_score = 0.6
 
     def __init__(self, apikey, **kwargs):
