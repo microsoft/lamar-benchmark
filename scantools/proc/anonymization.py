@@ -114,7 +114,8 @@ class BaseAnonymizer:
 class EgoBlurAnonymizer(BaseAnonymizer):
     min_face_score = 0.4
     max_face_score = 0.9
-    min_lp_score = 0.99
+    min_lp_score = 0.85
+    max_lp_score = 0.97
 
     def __init__(self, device=None):
         if device is None:
@@ -156,6 +157,11 @@ class EgoBlurAnonymizer(BaseAnonymizer):
         scores = scores.cpu().numpy().tolist()
         return [dict(bounding_box=b, score=s) for b, s in zip(boxes, scores)]
 
+    def lp_is_valid(self, lp, image_shape):
+        area_ratio = get_box_area_ratio(lp['bounding_box'], image_shape)
+        return lp['score'] > score_threshold(
+            area_ratio, score_min=self.min_lp_score, score_max=self.max_lp_score)
+
     def blur_image_group(self, input_paths: List[Path], tmp_dir: Path,
                          output_paths: Optional[List[Path]] = None):
         labels_path = tmp_dir / self.labels_filename
@@ -186,7 +192,7 @@ class EgoBlurAnonymizer(BaseAnonymizer):
                 plates = labels_cached[idx]['license_plates']
 
             faces = [f for f in faces if self.face_is_valid(f, image.shape)]
-            plates = [f for f in plates if f['score'] >= self.min_lp_score]
+            plates = [f for f in plates if self.lp_is_valid(f, image.shape)]
 
             blurred, _ = blur_detections(image, [f['bounding_box'] for f in faces])
             blurred, _ = blur_detections(
