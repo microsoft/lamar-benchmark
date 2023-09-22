@@ -1,10 +1,12 @@
 import json
 import logging
 from pathlib import Path
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Union
 import tarfile
+import shutil
 import cv2
 import numpy as np
+import PIL.Image
 import torch
 import torchvision
 from tqdm import tqdm
@@ -75,8 +77,27 @@ def blur_detections(image: np.ndarray,
         # np.where(mask_box, tmp[patch], blurred[patch])
 
     blurred = np.clip(np.rint(blurred), 0, 255).astype(np.uint8)
-
     return blurred, mask
+
+
+def resize_image_max(image: Union[torch.Tensor, np.ndarray], max_size: int,
+                     )-> Tuple[Union[torch.Tensor, np.ndarray], float]:
+    is_torch = isinstance(image, torch.Tensor)
+    if is_torch:
+        size = image.shape[-2:]
+    else:
+        size = image.shape[:2]
+    if max(size) > max_size:
+        scale = max_size / max(size)
+        size_new = [int(side*scale) for side in size]
+        if not is_torch:
+            image = PIL.Image.fromarray(image)
+        image = torchvision.transforms.functional.resize(image, size_new, antialias=True)
+        if not is_torch:
+            image = np.asarray(image)
+    else:
+        scale = 1.0
+    return image, scale
 
 
 def score_threshold(area: float,
@@ -138,13 +159,10 @@ class EgoBlurAnonymizer(BaseAnonymizer):
 
     def get_detections(self, detector, image_tensor: torch.Tensor,
                        nms_iou_threshold: float = 0.3, max_image_size: Optional[int] = None):
-        size = image_tensor.shape[-2:]
-        scale = None
-        if max_image_size is not None and max(size) > max_image_size:
-            scale = max_image_size / max(size)
-            size_new = [int(side*scale) for side in size]
-            image_tensor = torchvision.transforms.functional.resize(
-                image_tensor, size_new, antialias=True)
+        if max_image_size is not None:
+            image_tensor, scale = resize_image_max(image_tensor, max_image_size)
+        else:
+            scale = 1.0
         with torch.no_grad():
             detections = detector(image_tensor)
         boxes, _, scores, _ = detections  # returns boxes, labels, scores, dims
@@ -216,9 +234,10 @@ class EgoBlurAnonymizer(BaseAnonymizer):
 
 
 class BrighterAIAnonymizer(BaseAnonymizer):
-    min_face_score = 0.3
+    min_face_score = 0.4
     max_face_score = 0.98
-    min_lp_score = 0.6
+    min_lp_score = 0.7
+    max_image_size = 1240
 
     def __init__(self, apikey, **kwargs):
         self.apikey = apikey
@@ -229,15 +248,33 @@ class BrighterAIAnonymizer(BaseAnonymizer):
         labels_path = tmp_dir / self.labels_filename
         if labels_path.exists():
             logger.info('Reading labels %s', labels_path)
-            with open(labels_path, 'r') as fid:
-                labels = redact.JobLabels.parse_raw(fid.read())
-            return labels
+            return redact.JobLabels.parse_file(labels_path)
         logger.info('Calling API with %d images in %s.', len(paths), tmp_dir)
 
-        tmp_dir.mkdir(exist_ok=True, parents=True)
+        resized_dir = tmp_dir / 'images_resized'
+        resized_dir.mkdir(exist_ok=True, parents=True)
+        if self.max_image_size is None:
+            resized_paths = paths
+            scales = None
+        else:
+            resized_paths = []
+            scales = []
+            for p in paths:
+                image = read_image(p)
+                if max(image.shape[:2]) <= self.max_image_size:
+                    resized_paths.append(p)
+                    scales.append(1.0)
+                    continue
+                image, scale = resize_image_max(image, self.max_image_size)
+                resized_p = resized_dir / str(p)[str(p).startswith('/'):]
+                resized_p.parent.mkdir(exist_ok=True, parents=True)
+                write_image(resized_p, image)
+                resized_paths.append(resized_p)
+                scales.append(scale)
+
         tar_path = tmp_dir / f'{tmp_dir.name}.tar'
         with tarfile.open(tar_path, 'w') as tar:
-            for i, p in enumerate(paths):
+            for i, p in enumerate(resized_paths):
                 tar.add(p, arcname=f'{i:010}{p.suffix}')
 
         # call the anonymization API
@@ -252,8 +289,16 @@ class BrighterAIAnonymizer(BaseAnonymizer):
             return None
         labels = job.get_labels()
 
+        if scales is not None:
+            for index, frame in enumerate(labels.frames):
+                assert frame.index == (index + 1)
+                for attr in ['faces', 'license_plates']:
+                    for item in getattr(frame, attr):
+                        item.bounding_box = [round(b / scales[index]) for b in item.bounding_box]
+
         with open(labels_path, 'w') as fid:
             fid.write(labels.json())
+        shutil.rmtree(resized_dir)
         tar_path.unlink()
         return labels
 

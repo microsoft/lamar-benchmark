@@ -88,8 +88,7 @@ def run(capture: Capture, session_id: str, apikey: Optional[str] = None,
     if session.images is None:
         return
 
-    inplace = output_path is None
-    if inplace:
+    if output_path is None:
         logger.info('Will run image anonymization in place.')
 
     if apikey is None:
@@ -137,12 +136,15 @@ def run(capture: Capture, session_id: str, apikey: Optional[str] = None,
         map_ = lambda f, x: list(map(f, x))
     counts = map_(_worker_fn, worker_args)
     counter = Counter()
-    for c, a in zip(counts, worker_args):
+    failures = []
+    for c, (key, tmp_dir) in zip(counts, worker_args):
         if c is None:
-            logger.warning('Anynonymization failed for %s', a[1])
+            logger.warning('Anynonymization failed for (%s, %s)', key, tmp_dir)
+            failures.append(tmp_dir)
             continue
         counter += c
     logger.info('Detected %s in %d images.', str(dict(counter)), len(all_keys))
+    return failures
 
 
 if __name__ == '__main__':
