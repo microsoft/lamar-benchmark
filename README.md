@@ -70,20 +70,21 @@ T_w_i = sessions.trajectories[keys[0]]  # first pose, from sensor/rig to world
 
 - Python >= 3.8
 - [hloc](https://github.com/cvg/Hierarchical-Localization) and its dependencies, including [COLMAP](https://colmap.github.io/install.html) built from source
-- everything listed in `requirements/lamar.txt` installed with
+
+:two: Install the LaMAR libraries and pull the remaining pip dependencies:
 ```bash
-python -m pip install -r requirements/lamar.txt
+python -m pip install -e .
 ```
 
-:two: Optional: the processing pipeline additionally relies on heavier dependencies not required for benchmarking:
+:three: Optional: the processing pipeline additionally relies on heavier dependencies not required for benchmarking:
 
-- Pip dependencies: `python -m pip install -r requirements/scantools.txt`
+- Pip dependencies: `python -m pip install -e .[scantools]`
 - [raybender](https://github.com/cvg/raybender) for raytracing
 - [pcdmeshing](https://github.com/cvg/pcdmeshing) for pointcloud meshing
 
-:three: Optional: install `lamar` and `scantools` as libraries for external use via
+:four: Optional: if you wish to contribute, install the development tools as well:
 ```bash
-python -m pip install -e .
+python -m pip install -e .[dev]
 ```
 
 ## Benchmark
