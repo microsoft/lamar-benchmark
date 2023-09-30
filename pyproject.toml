@@ -18,8 +18,8 @@ dependencies = [
     "torch>=1.1",
     "tqdm>=4.36.0",
     "opencv-python",
-    #"pycolmap @ git+https://github.com/colmap/pycolmap.git@v0.4.0",
-    #"pyceres @ git+https://github.com/cvg/pyceres.git@v1.0",
+    "pycolmap @ git+https://github.com/colmap/pycolmap.git@v0.4.0",
+    "pyceres @ git+https://github.com/cvg/pyceres.git@v1.0",
 ]
 urls = {Repository = "https://github.com/microsoft/lamar-benchmark"}
 
