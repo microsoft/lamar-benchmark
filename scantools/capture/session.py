@@ -30,7 +30,6 @@ class Device(Enum):
 
 
 # TODO: inherit Rigs, Trajectories, and Records from a common abstract class
-# TODO: add proc/: mesh, depth rendering, alignment, overlap
 @dataclass
 class Session:
     sensors: Sensors
@@ -52,7 +51,6 @@ class Session:
         all_devices = set(self.sensors.keys())
         if self.rigs is not None:
             assert len(self.sensors.keys() & self.rigs.keys()) == 0
-            assert len(self.rigs.sensor_ids - self.sensors.keys()) == 0
             all_devices |= self.rigs.keys()
         if self.trajectories is not None:
             assert len(self.trajectories.device_ids - all_devices) == 0

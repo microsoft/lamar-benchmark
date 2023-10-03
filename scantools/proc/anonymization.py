@@ -1,17 +1,23 @@
+import json
 import logging
 from pathlib import Path
-from typing import List, Tuple, Optional
-import subprocess
+from typing import List, Tuple, Optional, Union
+import tarfile
+import shutil
 import cv2
 import numpy as np
+import PIL.Image
+import torch
+import torchvision
+from tqdm import tqdm
 
 from ..utils.io import read_image, write_image
 
 logger = logging.getLogger(__name__)
 
 try:
-    import redact
     from redact.settings import Settings
+    import redact.v3 as redact
 except ImportError as e:
     logger.error('Could not import Brighter.AI API - did you install it?\n'
                  'pip install git+https://github.com/brighter-ai/redact-client.git')
@@ -71,52 +77,210 @@ def blur_detections(image: np.ndarray,
         # np.where(mask_box, tmp[patch], blurred[patch])
 
     blurred = np.clip(np.rint(blurred), 0, 255).astype(np.uint8)
-
     return blurred, mask
 
 
-class BrighterAIAnonymizer:
-    labels_filename = 'labels.json'
+def resize_image_max(image: Union[torch.Tensor, np.ndarray], max_size: int,
+                     )-> Tuple[Union[torch.Tensor, np.ndarray], float]:
+    is_torch = isinstance(image, torch.Tensor)
+    if is_torch:
+        size = image.shape[-2:]
+    else:
+        size = image.shape[:2]
+    if max(size) > max_size:
+        scale = max_size / max(size)
+        size_new = [int(side*scale) for side in size]
+        if not is_torch:
+            image = PIL.Image.fromarray(image)
+        image = torchvision.transforms.functional.resize(image, size_new, antialias=True)
+        if not is_torch:
+            image = np.asarray(image)
+    else:
+        scale = 1.0
+    return image, scale
 
-    def __init__(self, apikey):
+
+def score_threshold(area: float,
+                    score_min: float = 0.3,
+                    score_max: float = 0.9,
+                    area_min: float = 0.001,
+                    area_max: float = 0.15) -> float:
+    t = np.log(area / area_min) / np.log(area_max / area_min)
+    t = np.clip(t, a_min=0, a_max=1)
+    return score_min + (score_max - score_min) * t
+
+
+def get_box_area_ratio(bbox, image_shape):
+    mx, my, Mx, My = bbox
+    return (Mx - mx + 1) * (My - my + 1) / (image_shape[0] * image_shape[1])
+
+
+class BaseAnonymizer:
+    labels_filename = 'labels.json'
+    min_face_score = None
+    max_face_score = None
+
+    def face_is_valid(self, face, image_shape):
+        if not isinstance(face, dict):
+            face = face.dict()
+        if face['score'] is None:
+            logger.warning('Found face with score=None.')
+            return True
+        area_ratio = get_box_area_ratio(face['bounding_box'], image_shape)
+        return face['score'] > score_threshold(
+            area_ratio, score_min=self.min_face_score,
+            score_max=self.max_face_score)
+
+
+class EgoBlurAnonymizer(BaseAnonymizer):
+    min_face_score = 0.4
+    max_face_score = 0.9
+    min_lp_score = 0.85
+    max_lp_score = 0.97
+
+    def __init__(self, device=None):
+        if device is None:
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.device = device
+
+        hub_dir = torch.hub.get_dir()
+        face_path = Path(hub_dir, 'ego_blur_face.jit')
+        if not face_path.exists():
+            raise FileNotFoundError(
+                f'Could not find the EgoBlur Face model at {face_path}. '
+                'Download it from https://www.projectaria.com/tools/egoblur/')
+        lp_path = Path(hub_dir, 'ego_blur_lp.jit')
+        if not face_path.exists():
+            raise FileNotFoundError(
+                f'Could not find the EgoBlur License Plate model at {lp_path}. '
+                'Download it from https://www.projectaria.com/tools/egoblur/')
+        self.face_detector = torch.jit.load(face_path, map_location='cpu').to(self.device).eval()
+        self.lp_detector = torch.jit.load(lp_path, map_location='cpu').to(self.device).eval()
+
+    def get_detections(self, detector, image_tensor: torch.Tensor,
+                       nms_iou_threshold: float = 0.3, max_image_size: Optional[int] = None):
+        if max_image_size is not None:
+            image_tensor, scale = resize_image_max(image_tensor, max_image_size)
+        else:
+            scale = 1.0
+        with torch.no_grad():
+            detections = detector(image_tensor)
+        boxes, _, scores, _ = detections  # returns boxes, labels, scores, dims
+        nms_keep_idx = torchvision.ops.nms(boxes, scores, nms_iou_threshold)
+        boxes = boxes[nms_keep_idx]
+        scores = scores[nms_keep_idx]
+        if scale is not None:
+            boxes /= scale
+        boxes = boxes.cpu().numpy().tolist()
+        scores = scores.cpu().numpy().tolist()
+        return [dict(bounding_box=b, score=s) for b, s in zip(boxes, scores)]
+
+    def lp_is_valid(self, lp, image_shape):
+        area_ratio = get_box_area_ratio(lp['bounding_box'], image_shape)
+        return lp['score'] > score_threshold(
+            area_ratio, score_min=self.min_lp_score, score_max=self.max_lp_score)
+
+    def blur_image_group(self, input_paths: List[Path], tmp_dir: Path,
+                         output_paths: Optional[List[Path]] = None):
+        labels_path = tmp_dir / self.labels_filename
+        if labels_path.exists():
+            logger.info('Reading labels %s', labels_path)
+            labels_cached = json.loads(labels_path.read_text())['frames']
+            assert len(input_paths) == len(labels_cached), (tmp_dir, len(input_paths))
+            labels = None
+        else:
+            labels_cached = None
+            labels = []
+
+        inplace = output_paths is None
+
+        counts = {'faces': 0, 'plates': 0}
+        # actually blur the images
+        for idx, image_path in enumerate(tqdm(input_paths)):
+            image = read_image(image_path)
+            if labels_cached is None:
+                image_tensor = torch.from_numpy(np.transpose(image, (2, 0, 1))).flip(0)
+                image_tensor = image_tensor.to(self.device)
+                faces = self.get_detections(self.face_detector, image_tensor)
+                plates = self.get_detections(self.lp_detector, image_tensor,
+                                             max_image_size=640)
+                labels.append(dict(faces=faces, license_plates=plates))
+            else:
+                faces = labels_cached[idx]['faces']
+                plates = labels_cached[idx]['license_plates']
+
+            faces = [f for f in faces if self.face_is_valid(f, image.shape)]
+            plates = [f for f in plates if self.lp_is_valid(f, image.shape)]
+
+            blurred, _ = blur_detections(image, [f['bounding_box'] for f in faces])
+            blurred, _ = blur_detections(
+                blurred, [f['bounding_box'] for f in plates], blend_ksize_multiplier=0)
+
+            assert blurred.shape == image.shape and blurred.dtype == image.dtype
+            counts['faces'] += len(faces)
+            counts['plates'] += len(plates)
+
+            if inplace:
+                if len(faces) > 0 or len(plates) > 0:
+                    write_image(image_path, blurred)
+            else:
+                out = output_paths[idx]
+                out.parent.mkdir(exist_ok=True, parents=True)
+                write_image(out, blurred)
+        if labels is not None:
+            labels_path.write_text(json.dumps(dict(frames=labels)))
+        logger.info('Finished anonymization in %s', tmp_dir)
+        return counts
+
+
+class BrighterAIAnonymizer(BaseAnonymizer):
+    min_face_score = 0.4
+    max_face_score = 0.98
+    min_lp_score = 0.7
+    max_image_size = 1240
+
+    def __init__(self, apikey, **kwargs):
         self.apikey = apikey
         self.url = Settings().redact_online_url
-        self.args = redact.JobArguments(single_frame_optimized=True)
+        self.args = redact.JobArguments(**kwargs)
 
     def query_frame_labels(self, paths, tmp_dir):
         labels_path = tmp_dir / self.labels_filename
         if labels_path.exists():
             logger.info('Reading labels %s', labels_path)
-            with open(labels_path, 'r') as fid:
-                labels = redact.JobLabels.parse_raw(fid.read())
-            return labels
-        logger.info('Calling API with %d images in %s.', len(paths), tmp_dir.name)
+            return redact.JobLabels.parse_file(labels_path)
+        logger.info('Calling API with %d images in %s.', len(paths), tmp_dir)
 
-        # write image list
-        list_path = tmp_dir / 'list.txt'
-        tmp_dir.mkdir(exist_ok=True, parents=True)
-        with open(list_path, 'w') as fid:
+        resized_dir = tmp_dir / 'images_resized'
+        resized_dir.mkdir(exist_ok=True, parents=True)
+        if self.max_image_size is None:
+            resized_paths = paths
+            scales = None
+        else:
+            resized_paths = []
+            scales = []
             for p in paths:
-                fid.write(f"file '{p.resolve()}'\n")
+                image = read_image(p)
+                if max(image.shape[:2]) <= self.max_image_size:
+                    resized_paths.append(p)
+                    scales.append(1.0)
+                    continue
+                image, scale = resize_image_max(image, self.max_image_size)
+                resized_p = resized_dir / str(p)[str(p).startswith('/'):]
+                resized_p.parent.mkdir(exist_ok=True, parents=True)
+                write_image(resized_p, image)
+                resized_paths.append(resized_p)
+                scales.append(scale)
 
-        # pack into video
-        video_path = tmp_dir / f'{tmp_dir.name}.mp4'
-        cmd = [
-            'ffmpeg',
-            '-y',
-            '-safe', '0',
-            '-f', 'concat',
-            '-i', str(list_path),
-            '-framerate', '24',
-            '-codec', 'copy',
-            str(video_path),
-        ]
-        subprocess.run(cmd, check=True, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
+        tar_path = tmp_dir / f'{tmp_dir.name}.tar'
+        with tarfile.open(tar_path, 'w') as tar:
+            for i, p in enumerate(resized_paths):
+                tar.add(p, arcname=f'{i:010}{p.suffix}')
 
         # call the anonymization API
         instance = redact.RedactInstance.create(
-            service='blur', out_type='videos', redact_url=self.url, api_key=self.apikey)
-        with open(video_path, 'rb') as fid:
+            service='blur', out_type='archives', redact_url=self.url, api_key=self.apikey)
+        with open(tar_path, 'rb') as fid:
             job = instance.start_job(file=fid, job_args=self.args)
             job.wait_until_finished()
         status = job.get_status()
@@ -125,37 +289,38 @@ class BrighterAIAnonymizer:
             return None
         labels = job.get_labels()
 
+        if scales is not None:
+            for index, frame in enumerate(labels.frames):
+                assert frame.index == (index + 1)
+                for attr in ['faces', 'license_plates']:
+                    for item in getattr(frame, attr):
+                        item.bounding_box = [round(b / scales[index]) for b in item.bounding_box]
+
         with open(labels_path, 'w') as fid:
             fid.write(labels.json())
-        video_path.unlink()
+        shutil.rmtree(resized_dir)
+        tar_path.unlink()
         return labels
-
-    def face_is_valid(self, face, image_shape):
-        mx, my, Mx, My = face.bounding_box
-        area_ratio = (
-            (Mx - mx + 1) * (My - my + 1) / (image_shape[0] * image_shape[1]))
-        # We use a conservative detection threshold of 40%. Regardless of the 
-        # threshold, we noticed a significant number of false positives, notably
-        # around reflections / bright regions in HoloLens images. These
-        # detections cover a significant part of the image, and, given that most
-        # of our data is captured at least a few meters away from bystanders, we
-        # filter out all detection convering >=4% of total area.
-        return face.score >= 0.40 and area_ratio < 0.04
 
     def blur_image_group(self, input_paths: List[Path], tmp_dir: Path,
                          output_paths: Optional[List[Path]] = None):
         labels = self.query_frame_labels(input_paths, tmp_dir)
         if labels is None:
             return None
+        inplace = output_paths is None
 
+        assert len(input_paths) == len(labels.frames), (tmp_dir, len(input_paths))
         counts = {'faces': 0, 'plates': 0}
         # actually blur the images
         for idx, image_path in enumerate(input_paths):
             label = labels.frames[idx]
             assert label.index == (idx+1)
+            if not label.faces and not label.license_plates and inplace:
+                continue
+
             image = read_image(image_path)
             faces = [f for f in label.faces if self.face_is_valid(f, image.shape)]
-            plates = [f for f in label.license_plates if f.score >= 0.6]
+            plates = [f for f in label.license_plates if f.score >= self.min_lp_score]
 
             blurred, _ = blur_detections(image, [f.bounding_box for f in faces])
             blurred, _ = blur_detections(
@@ -165,7 +330,6 @@ class BrighterAIAnonymizer:
             counts['faces'] += len(faces)
             counts['plates'] += len(plates)
 
-            inplace = output_paths is None
             if inplace:
                 if len(faces) > 0 or len(plates) > 0:
                     write_image(image_path, blurred)
@@ -173,5 +337,5 @@ class BrighterAIAnonymizer:
                 out = output_paths[idx]
                 out.parent.mkdir(exist_ok=True, parents=True)
                 write_image(out, blurred)
-        logger.info('Finished anonymization in %s', tmp_dir.name)
+        logger.info('Finished anonymization in %s', tmp_dir)
         return counts
