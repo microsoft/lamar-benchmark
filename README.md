@@ -62,7 +62,7 @@ keys = session.trajectories.key_pairs()  # all (timestamp, sensor_or_rig_id)
 T_w_i = sessions.trajectories[keys[0]]  # first pose, from sensor/rig to world
 ```
 
-[More details are provided in the specification document.](./CAPTURE.md)
+[More details are provided in the specification document `CAPTURE.md`.](./CAPTURE.md)
 
 ## Installation
 
@@ -70,20 +70,21 @@ T_w_i = sessions.trajectories[keys[0]]  # first pose, from sensor/rig to world
 
 - Python >= 3.8
 - [hloc](https://github.com/cvg/Hierarchical-Localization) and its dependencies, including [COLMAP](https://colmap.github.io/install.html) built from source
-- everything listed in `requirements/lamar.txt` installed with
+
+:two: Install the LaMAR libraries and pull the remaining pip dependencies:
 ```bash
-python -m pip install -r requirements/lamar.txt
+python -m pip install -e .
 ```
 
-:two: Optional: the processing pipeline additionally relies on heavier dependencies not required for benchmarking:
+:three: Optional: the processing pipeline additionally relies on heavier dependencies not required for benchmarking:
 
-- Pip dependencies: `python -m pip install -r requirements/scantools.txt`
+- Pip dependencies: `python -m pip install -e .[scantools]`
 - [raybender](https://github.com/cvg/raybender) for raytracing
 - [pcdmeshing](https://github.com/cvg/pcdmeshing) for pointcloud meshing
 
-:three: Optional: install `lamar` and `scantools` as libraries for external use via
+:four: Optional: if you wish to contribute, install the development tools as well:
 ```bash
-python -m pip install -e .
+python -m pip install -e .[dev]
 ```
 
 ## Benchmark
@@ -209,6 +210,12 @@ Here are runfiles that could be handy for importing and exporting data:
 - `run_radio_anonymization`: anonymize radio signal IDs
 - `run_combine_sequences`: combine multiple sequence sessions into a single session
 
+## Raw data
+
+We also release the raw original data, as recorded by the devices (HoloLens, phones, NavVis scanner), with minimal post-processing.
+Like the evaluation data, the raw data is accessed through [the dataset page](https://lamar.ethz.ch/lamar/).
+[More details are provided in the specification document `RAW-DATA.md`.](./RAW-DATA.md)
+
 ## Release plan
 
  We are still in the process of fully releasing LaMAR. Here is the release plan:
@@ -216,7 +223,7 @@ Here are runfiles that could be handy for importing and exporting data:
 - [x] LaMAR evaluation data and benchmark
 - [x] Ground truthing pipeline
 - [x] iOS capture app
-- [ ] Full raw data
+- [x] Full raw data
 - [ ] Leaderboard and evaluation server
 - [ ] 3D dataset viewer
 

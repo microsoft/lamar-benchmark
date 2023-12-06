@@ -100,7 +100,7 @@ class Camera(Sensor):
 
     @cached_property
     def params_dict(self) -> Dict[str, float]:
-        return dict(zip(CAMERA_MODEL_PARAM_NAMES[self.model_name()],
+        return dict(zip(CAMERA_MODEL_PARAM_NAMES[self.model_name],
                         self.params))
 
     @cached_property

@@ -26,6 +26,7 @@ def extract_frames_from_video(input_dir: Path, images_dir: Path):
     frames_format = 'out-%012d.jpg'
     cmd = [
         'ffmpeg',
+        '-hide_banner', '-loglevel', 'warning', '-nostats',
         '-i', video_path.as_posix(),
         '-vsync', '0',
         '-qmin', '1',
@@ -37,7 +38,7 @@ def extract_frames_from_video(input_dir: Path, images_dir: Path):
     # Extract timestamps.
     cmd = [
         'ffprobe',
-        '-v', 'quiet',
+        '-hide_banner', '-loglevel', 'warning',
         '-f', 'lavfi',
         '-i', f'movie={video_path.as_posix()}',
         '-show_entries', 'frame=pkt_pts',
@@ -159,8 +160,7 @@ def parse_depth_files(input_dir: Path,
                       data_dir: Path,
                       sensors: Sensors,
                       images: RecordsCamera,
-                      rots90: Dict[int, int],
-                      min_confidence: int = 1) -> RecordsDepth:
+                      rots90: Dict[int, int]) -> RecordsDepth:
     records = RecordsDepth()
     paths = list(input_dir.glob('*.bin'))
     for depth_path in paths:
@@ -168,10 +168,15 @@ def parse_depth_files(input_dir: Path,
         if timestamp not in images:
             continue
 
-        confidence = cv2.imread(
-            depth_path.with_suffix('.confidence.png').as_posix(), cv2.IMREAD_ANYDEPTH)
+        confidence_path = depth_path.with_suffix('.confidence.png')
+        if not confidence_path.exists():
+            # This can happen if the capture app exits before the depth is fully written.
+            logger.warning('No confidence for depth %s, skipping this timestamp.', depth_path)
+            continue
+        confidence = cv2.imread(confidence_path.as_posix(), cv2.IMREAD_ANYDEPTH)
         depth = np.fromfile(depth_path, dtype=np.float32).reshape(confidence.shape)
-        depth[confidence < min_confidence] = 0
+
+        confidence = np.rot90(confidence, rots90[timestamp])
         depth = np.rot90(depth, rots90[timestamp])
 
         camera_id, = images[timestamp].keys()
@@ -189,6 +194,7 @@ def parse_depth_files(input_dir: Path,
         out_path = data_dir / subpath
         out_path.parent.mkdir(exist_ok=True, parents=True)
         write_depth(out_path, depth)
+        write_image(out_path.with_suffix('.confidence.png'), confidence)
         records[timestamp, depth_id] = subpath
     return records
 
@@ -298,6 +304,16 @@ def timestamps_to_session(timestamps: List[int],
     if bt_path.exists():
         bluetooth_signals = parse_bluetooth_file(bt_path, timestamps, sensors)
 
+    for filename in [
+            'accelerometer.txt',
+            'gyroscope.txt',
+            'magnetometer.txt',
+            'fused_imu.txt',
+            'location.txt',
+        ]:
+        if (input_path / filename).exists():
+            shutil.copy(input_path / filename, capture.session_path(session_id))
+
     session = Session(
         sensors=sensors, trajectories=trajectory,
         images=images, bt=bluetooth_signals, depths=depths)
@@ -308,7 +324,8 @@ def run(input_path: Path,
         capture: Capture,
         session_id: str,
         visualize: bool = False,
-        downsample_framerate: Optional[float] = 5) -> List[str]:
+        downsample_framerate: Optional[float] = 5,
+        split_sequence_on_failure: bool = True) -> List[str]:
     assert session_id not in capture.sessions, session_id
 
     images_as_video = (input_path / 'images.mp4').exists()
@@ -326,10 +343,14 @@ def run(input_path: Path,
         mlp = MeshlabProject()
 
     poses, cameras, rots90 = parse_pose_file(input_path / 'poses.txt')
-    timestamp_chunks = chunk_tracking_failures(poses)
+    if split_sequence_on_failure:
+        chunks_timestamps = chunk_tracking_failures(poses)
+        chunks_id_timestamps = [
+            (f'{session_id}_{i:03}', t) for i, t in enumerate(chunks_timestamps)]
+    else:
+        chunks_id_timestamps = [(session_id, sorted(poses.keys()))]
     chunk_ids = []
-    for i, timestamps in enumerate(timestamp_chunks):
-        chunk_id = f'{session_id}_{i:03}'
+    for chunk_id, timestamps in chunks_id_timestamps:
         if downsample_framerate is not None:
             timestamps = keyframe_selection(timestamps, downsample_framerate)
         logger.info('Importing sub-session %s', chunk_id)

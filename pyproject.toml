@@ -1,0 +1,44 @@
+[project]
+name = "lamar"
+description = "LaMAR: Benchmarking Localization and Mapping for Augmented Reality"
+version = "1.0"
+authors = [{name = "Microsoft"}]
+readme = "README.md"
+requires-python = ">=3.8"
+license = {file = "LICENSE-CODE"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "numpy",
+    "scipy",
+    "h5py",
+    "torch>=1.1",
+    "tqdm>=4.36.0",
+    "opencv-python",
+    "pycolmap @ git+https://github.com/colmap/pycolmap.git@v0.4.0",
+    "pyceres @ git+https://github.com/cvg/pyceres.git@v1.0",
+]
+urls = {Repository = "https://github.com/microsoft/lamar-benchmark"}
+
+[project.optional-dependencies]
+scantools = [
+    "matplotlib",
+    "lxml",
+    "beautifulsoup4==4.10.0",
+    "open3d",
+    "pytijo",
+    "plyfile",
+    "astral",
+]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "pylint==2.5",
+    "autopep8",
+]
+
+[tool.setuptools]
+packages = ["lamar", "scantools"]
