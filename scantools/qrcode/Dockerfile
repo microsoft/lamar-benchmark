@@ -24,7 +24,9 @@ RUN apt-get install -y --no-install-recommends --no-install-suggests \
     python3-setuptools \
     cmake \
     git   \
-    build-essential
+    build-essential \
+    libgl1
+RUN python3 -m pip install --upgrade pip
 
 # Install dependencies.
 COPY scripts/install_raybender.sh /tmp/
