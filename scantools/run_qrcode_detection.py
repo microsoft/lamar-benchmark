@@ -107,133 +107,127 @@ def save_qr_map(qr_map, path):
         print("Saving qr_map to file:", path)
         json.dump(qr_map, json_file, indent=2)
 
-def run_qrcode_detection(capture: Capture, mesh_id: str = "mesh"):
-    for session_id in capture.sessions:
-        session = capture.sessions[session_id]
-        output_dir = capture.data_path(session_id)
+def run_qrcode_detection(capture: Capture, session_id: str, mesh_id: str = "mesh"):
+    session = capture.sessions[session_id]
+    output_dir = capture.data_path(session_id)
 
-        assert session.proc is not None
-        assert session.proc.meshes is not None
-        assert mesh_id in session.proc.meshes
-        assert session.images is not None
+    assert session.proc is not None
+    assert session.proc.meshes is not None
+    assert mesh_id in session.proc.meshes
+    assert session.images is not None
 
-        mesh_path = capture.proc_path(session_id) / session.proc.meshes[mesh_id]
-        mesh = read_mesh(mesh_path)
-        renderer = Renderer(mesh)
+    mesh_path = capture.proc_path(session_id) / session.proc.meshes[mesh_id]
+    mesh = read_mesh(mesh_path)
+    renderer = Renderer(mesh)
 
-        qrcode_dir = output_dir / "qrcodes"
-        qrcode_dir.mkdir(exist_ok=True, parents=True)
+    qrcode_dir = output_dir / "qrcodes"
+    qrcode_dir.mkdir(exist_ok=True, parents=True)
 
-        qr_map = []
-        for ts, cam_id in tqdm(session.images.key_pairs()):
-            pose_cam2w = session.trajectories[ts, cam_id]
-            camera = session.sensors[cam_id]
+    qr_map = []
+    for ts, cam_id in tqdm(session.images.key_pairs()):
+        pose_cam2w = session.trajectories[ts, cam_id]
+        camera = session.sensors[cam_id]
 
-            image_path = output_dir / session.images[ts, cam_id]
-            qrcodes = QRCodeDetector(image_path)
+        image_path = output_dir / session.images[ts, cam_id]
+        qrcodes = QRCodeDetector(image_path)
 
-            qrcode_path = qrcode_dir / session.images[ts, cam_id]
-            qrcode_path = qrcode_path.with_suffix(".qrcode.json")
+        qrcode_path = qrcode_dir / session.images[ts, cam_id]
+        qrcode_path = qrcode_path.with_suffix(".qrcode.json")
 
-            if qrcode_path.is_file():
-                qrcodes.load(qrcode_path)
-            else:
-                qrcodes.detect()
-                qrcodes.save(qrcode_path)
-            # qrcodes.show(markersize=2)
-            print(qrcodes)
+        if qrcode_path.is_file():
+            qrcodes.load(qrcode_path)
+        else:
+            qrcodes.detect()
+            qrcodes.save(qrcode_path)
+        # qrcodes.show(markersize=2)
+        print(qrcodes)
 
-            # Create QR map from detected QR codes.
-            for qr in qrcodes:
-                points2D = np.asarray(qr["points2D"])
+        # Create QR map from detected QR codes.
+        for qr in qrcodes:
+            points2D = np.asarray(qr["points2D"])
 
-                # Ray casting.
-                origins, directions = compute_rays(pose_cam2w, camera, p2d=points2D)
-                intersections, intersected = renderer.compute_intersections((origins, directions))
+            # Ray casting.
+            origins, directions = compute_rays(pose_cam2w, camera, p2d=points2D)
+            intersections, intersected = renderer.compute_intersections((origins, directions))
 
-                # Verify all rays intersect the mesh.
-                if not intersected.all() and len(intersected) == 4:
-                    logger.warning("QR code %s doesn't intersected in all points.", qr["id"])
-                    continue
+            # Verify all rays intersect the mesh.
+            if not intersected.all() and len(intersected) == 4:
+                logger.warning("QR code %s doesn't intersected in all points.", qr["id"])
+                continue
 
-                # 3D points from ray casting, intersection with mesh.
-                points3D_world = intersections
+            # 3D points from ray casting, intersection with mesh.
+            points3D_world = intersections
 
-                pose_w2cam = pose_cam2w.inv
-                points3D_cam = pose_w2cam.transform_points(points3D_world)
+            pose_w2cam = pose_cam2w.inv
+            points3D_cam = pose_w2cam.transform_points(points3D_world)
 
 
-                # QR code indices:
-                #   0. top-left,
-                #   1. bottom-left,
-                #   2. bottom-right,
-                #   3. top-right
-                #
-                #
-                # QR code coordinate system:
-                #        ^
-                #       /
-                #      / z-axis
-                #     /
-                #   0. ---- x-axis --->  3.
-                #   |
-                #   |
-                #   y-axis
-                #   |
-                #   |
-                #   v
-                #   1.                   2.
-                #
+            # QR code indices:
+            #   0. top-left,
+            #   1. bottom-left,
+            #   2. bottom-right,
+            #   3. top-right
+            #
+            #
+            # QR code coordinate system:
+            #        ^
+            #       /
+            #      / z-axis
+            #     /
+            #   0. ---- x-axis --->  3.
+            #   |
+            #   |
+            #   y-axis
+            #   |
+            #   |
+            #   v
+            #   1.                   2.
+            #
 
-                world_T_qr = np.zeros((4, 4))
-                world_T_qr[3, 3] = 1
+            world_T_qr = np.zeros((4, 4))
+            world_T_qr[3, 3] = 1
 
-                # Translation (QR to World).
-                world_T_qr[0:3, 3] = points3D_world[0]
+            # Translation (QR to World).
+            world_T_qr[0:3, 3] = points3D_world[0]
 
-                # Rotation (QR to World).
-                # x-axis.
-                v = points3D_world[3] - points3D_world[0]
-                x_axis = v / np.linalg.norm(v)
-                world_T_qr[0:3, 0] = x_axis
+            # Rotation (QR to World).
+            # x-axis.
+            v = points3D_world[3] - points3D_world[0]
+            x_axis = v / np.linalg.norm(v)
+            world_T_qr[0:3, 0] = x_axis
 
-                # y-axis.
-                v = points3D_world[1] - points3D_world[0]
-                y_axis = v / np.linalg.norm(v)
-                world_T_qr[0:3, 1] = y_axis
+            # y-axis.
+            v = points3D_world[1] - points3D_world[0]
+            y_axis = v / np.linalg.norm(v)
+            world_T_qr[0:3, 1] = y_axis
 
-                # z-axis (cross product, right-hand coordinate system).
-                z_axis = np.cross(x_axis, y_axis)
-                world_T_qr[0:3, 2] = z_axis
+            # z-axis (cross product, right-hand coordinate system).
+            z_axis = np.cross(x_axis, y_axis)
+            world_T_qr[0:3, 2] = z_axis
 
-                R = world_T_qr[0:3, 0:3]
+            R = world_T_qr[0:3, 0:3]
 
-                if math.isnan(np.linalg.det(R)):
-                    continue
+            if math.isnan(np.linalg.det(R)):
+                continue
 
-                # Append current QR to the QR map.
-                QR = {
-                    "id": qr["id"],  # String in the QR code.
-                    "timestamp": ts,
-                    "cam_id": cam_id,
-                    "points2D": points2D.tolist(),
-                    "points3D": points3D_world.tolist(),
-                    "world_T_qr": world_T_qr.reshape(1, 16).tolist(),
-                    "world_T_cam": pose_cam2w.to_4x4mat().reshape(1, 16).tolist(),
-                }
+            # Append current QR to the QR map.
+            QR = {
+                "id": qr["id"],  # String in the QR code.
+                "timestamp": ts,
+                "cam_id": cam_id,
+                "points2D": points2D.tolist(),
+                "points3D": points3D_world.tolist(),
+                "world_T_qr": world_T_qr.reshape(1, 16).tolist(),
+                "world_T_cam": pose_cam2w.to_4x4mat().reshape(1, 16).tolist(),
+            }
 
-                print(QR)
-                qr_map.append(QR)
-        save_qr_map(qr_map, qrcode_dir / "qr_map.json")
+            print(QR)
+            qr_map.append(QR)
+    save_qr_map(qr_map, qrcode_dir / "qr_map.json")
 
 
 
 def run(capture_path: Path, session_ids: List[str], navvis_dir: Path):
-
-    capture = Capture.load(capture_path)
-    run_qrcode_detection(capture, mesh_id="mesh")
-    return
-
     if capture_path.exists():
         capture = Capture.load(capture_path)
     else:
@@ -259,7 +253,7 @@ def run(capture_path: Path, session_ids: List[str], navvis_dir: Path):
             or mesh_id not in capture.sessions[session].proc.meshes
         ):
             logger.info("Meshing session %s.", session)
-            kwargs = {'simplify_factor': 5, 'simplify_error': 1e-8}
+            # kwargs = {'simplify_factor': 5, 'simplify_error': 1e-8}
             run_meshing.run(
                 capture,
                 session,
@@ -268,9 +262,7 @@ def run(capture_path: Path, session_ids: List[str], navvis_dir: Path):
                 # **kwargs,
             )
 
-        if not capture.sessions[session].depths:
-            logger.info("Rendering session %s.", session)
-            run_rendering.run(capture, session, mesh_id=mesh_id + "_simplified")
+        run_qrcode_detection(capture, session)
 
         to_meshlab_visualization.run(
             capture,
