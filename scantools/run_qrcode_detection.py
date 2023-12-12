@@ -1,9 +1,9 @@
-# %%
 import argparse
 import json
+import math
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List
-from dataclasses import dataclass, field
 
 import cv2
 import matplotlib.pyplot as plt
@@ -18,9 +18,9 @@ from scantools import (
     to_meshlab_visualization,
 )
 from scantools.capture import Capture
-from scantools.utils.io import read_mesh
 from scantools.proc.rendering import Renderer, compute_rays
-import math
+from scantools.utils.io import read_mesh
+
 
 @dataclass
 class QRCodeDetector:
@@ -100,13 +100,17 @@ def load_qr_map(path):
         qr_map = json.load(json_file)
         return qr_map
 
+
 # Save QR map to json file.
 def save_qr_map(qr_map, path):
-    with open(path, 'w') as json_file:
+    with open(path, "w") as json_file:
         print("Saving qr_map to file:", path)
         json.dump(qr_map, json_file, indent=2)
 
-def run_qrcode_detection(capture: Capture, session_id: str, mesh_id: str = "mesh"):
+
+def run_qrcode_detection(
+    capture: Capture, session_id: str, mesh_id: str = "mesh"
+):
     session = capture.sessions[session_id]
     output_dir = capture.data_path(session_id)
 
@@ -147,11 +151,15 @@ def run_qrcode_detection(capture: Capture, session_id: str, mesh_id: str = "mesh
 
             # Ray casting.
             origins, directions = compute_rays(pose_cam2w, camera, p2d=points2D)
-            intersections, intersected = renderer.compute_intersections((origins, directions))
+            intersections, intersected = renderer.compute_intersections(
+                (origins, directions)
+            )
 
             # Verify all rays intersect the mesh.
             if not intersected.all() and len(intersected) == 4:
-                logger.warning("QR code %s doesn't intersected in all points.", qr["id"])
+                logger.warning(
+                    "QR code %s doesn't intersected in all points.", qr["id"]
+                )
                 continue
 
             # 3D points from ray casting, intersection with mesh.
@@ -221,8 +229,12 @@ def run_qrcode_detection(capture: Capture, session_id: str, mesh_id: str = "mesh
     save_qr_map(qr_map, qrcode_dir / "qr_map.json")
 
 
-
-def run(capture_path: Path, session_ids: List[str], navvis_dir: Path, visualization: bool = True):
+def run(
+    capture_path: Path,
+    session_ids: List[str],
+    navvis_dir: Path,
+    visualization: bool = True,
+):
     if capture_path.exists():
         capture = Capture.load(capture_path)
     else:
