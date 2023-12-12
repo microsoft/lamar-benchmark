@@ -15,7 +15,6 @@ from scantools import (
     logger,
     run_meshing,
     run_navvis_to_capture,
-    run_rendering,
     to_meshlab_visualization,
 )
 from scantools.capture import Capture
@@ -158,10 +157,6 @@ def run_qrcode_detection(capture: Capture, session_id: str, mesh_id: str = "mesh
             # 3D points from ray casting, intersection with mesh.
             points3D_world = intersections
 
-            pose_w2cam = pose_cam2w.inv
-            points3D_cam = pose_w2cam.transform_points(points3D_world)
-
-
             # QR code indices:
             #   0. top-left,
             #   1. bottom-left,
@@ -227,7 +222,7 @@ def run_qrcode_detection(capture: Capture, session_id: str, mesh_id: str = "mesh
 
 
 
-def run(capture_path: Path, session_ids: List[str], navvis_dir: Path):
+def run(capture_path: Path, session_ids: List[str], navvis_dir: Path, visualization: bool = True):
     if capture_path.exists():
         capture = Capture.load(capture_path)
     else:
@@ -235,8 +230,6 @@ def run(capture_path: Path, session_ids: List[str], navvis_dir: Path):
 
     tiles_format = "none"
     mesh_id = "mesh"
-    # meshing_method = "advancing_front"
-    meshing_method = "poisson"
 
     for session in session_ids:
         if session not in capture.sessions:
@@ -253,25 +246,22 @@ def run(capture_path: Path, session_ids: List[str], navvis_dir: Path):
             or mesh_id not in capture.sessions[session].proc.meshes
         ):
             logger.info("Meshing session %s.", session)
-            # kwargs = {'simplify_factor': 5, 'simplify_error': 1e-8}
             run_meshing.run(
                 capture,
                 session,
-                method=meshing_method,
-                psr_depth=8,
-                # **kwargs,
             )
 
         run_qrcode_detection(capture, session)
 
-        to_meshlab_visualization.run(
-            capture,
-            session,
-            f"trajectory_{session}",
-            export_mesh=True,
-            export_poses=True,
-            mesh_id=mesh_id,
-        )
+        if visualization:
+            to_meshlab_visualization.run(
+                capture,
+                session,
+                f"trajectory_{session}",
+                export_mesh=True,
+                export_poses=True,
+                mesh_id=mesh_id,
+            )
 
 
 if __name__ == "__main__":
@@ -279,6 +269,7 @@ if __name__ == "__main__":
     parser.add_argument("--capture_path", type=Path, required=True)
     parser.add_argument("--input_path", type=Path, required=True)
     parser.add_argument("--sessions", nargs="*", type=str, default=[])
-    args = parser.parse_args()
+    parser.add_argument("--visualization", type=Path, default=True)
+    args = parser.parse_args().__dict__
 
-    run(args.capture_path, args.sessions, args.input_path)
+    run(**args)
