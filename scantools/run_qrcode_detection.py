@@ -3,7 +3,7 @@ import json
 import math
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import cv2
 import matplotlib.pyplot as plt
@@ -143,7 +143,7 @@ def run_qrcode_detection(
             qrcodes.detect()
             qrcodes.save(qrcode_path)
         # qrcodes.show(markersize=2)
-        print(qrcodes)
+        logger.info(qrcodes)
 
         # Create QR map from detected QR codes.
         for qr in qrcodes:
@@ -231,8 +231,8 @@ def run_qrcode_detection(
 
 def run(
     capture_path: Path,
-    session_ids: List[str],
-    navvis_dir: Path,
+    sessions: Optional[List[str]] = None,
+    navvis_dir: Optional[Path] = None,
     visualization: bool = True,
 ):
     if capture_path.exists():
@@ -243,7 +243,11 @@ def run(
     tiles_format = "none"
     mesh_id = "mesh"
 
-    for session in session_ids:
+    # If `sessions` is not provided, run for all sessions in the `capture_path`.
+    if sessions is None:
+        sessions = capture.sessions.keys()
+
+    for session in sessions:
         if session not in capture.sessions:
             logger.info("Exporting NavVis session %s.", session)
             run_navvis_to_capture.run(
@@ -278,10 +282,39 @@ def run(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--capture_path", type=Path, required=True)
-    parser.add_argument("--input_path", type=Path, required=True)
-    parser.add_argument("--sessions", nargs="*", type=str, default=[])
-    parser.add_argument("--visualization", type=Path, default=True)
+    parser.add_argument(
+        "--capture_path",
+        type=Path,
+        required=True,
+        help="Path to the capture. If it doesn't exist it will process with "
+        "tile format `none` and export the capture to this path.",
+    )
+    parser.add_argument(
+        "--sessions",
+        nargs="*",
+        type=str,
+        default=None,
+        required=False,
+        help="List of sessions to process. If not provided, it will process all "
+        "sessions in the `capture_path`. Useful when we want to process only "
+        "some sessions.",
+    )
+    parser.add_argument(
+        "--navvis_dir",
+        type=Path,
+        default=None,
+        required=False,
+        help="Input NavVis data path, used if `--capture_path` doesn't exist. "
+        "This could be useful when we have already converted to capture format "
+        "and we don't have the original NavVis data anymore.",
+    )
+    parser.add_argument(
+        "--visualization",
+        type=Path,
+        default=True,
+        required=False,
+        help="Write out MeshLab visualization.",
+    )
     args = parser.parse_args().__dict__
 
     run(**args)
