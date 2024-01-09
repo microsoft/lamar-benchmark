@@ -84,6 +84,10 @@ A Python interface that mirrors this file structure is available in `scantools.c
 - `proc/depth_renderings.txt` is a list of depth maps and their relative paths in `proc/depth_renderings/`
 - `proc/alignment_global.txt` is a list of global transforms w.r.t. other sessions with additional info (e.g. error statistics)
 - `proc/alignment_trajectories.txt` is a list of transforms w.r.t an absolute reference, following the format of `trajectories.txt`
+- `qrcodes/qr_map.txt` contains all detected QR codes.
+  `qrcodes/qr_map_filtered_by_area.txt` is a list of QR codes filtered by area.
+  If there are multiple measurements for one QR code, we select the one with
+  largest area in the image.
 
 ### 3. Registration
 

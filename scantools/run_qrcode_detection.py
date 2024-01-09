@@ -1,15 +1,7 @@
 import argparse
-import json
-import math
-from dataclasses import dataclass, field
+import multiprocessing
 from pathlib import Path
 from typing import List, Optional
-
-import cv2
-import matplotlib.pyplot as plt
-import numpy as np
-from pyzbar.pyzbar import ZBarSymbol, decode  # pip install pyzbar-upright
-from tqdm import tqdm
 
 from scantools import (
     logger,
@@ -18,215 +10,25 @@ from scantools import (
     to_meshlab_visualization,
 )
 from scantools.capture import Capture
-from scantools.proc.rendering import Renderer, compute_rays
-from scantools.utils.io import read_mesh
+from scantools.qr.detector import QRCodeDetector
+from scantools.qr.map import (
+    create_qr_map,
+    filter_qr_codes_by_area,
+    save_qr_maps,
+)
 
-
-@dataclass
-class QRCodeDetector:
-    image_path: str
-    qrcodes: list = field(default_factory=list)
-
-    def __post_init__(self):
-        if not Path(self.image_path).is_file():
-            raise FileNotFoundError(str(self.image_path))
-
-    def __getitem__(self, key):
-        return self.qrcodes[key]
-
-    def __iter__(self):
-        return iter(self.qrcodes)
-
-    def __len__(self):
-        return len(self.qrcodes)
-
-    def is_empty(self):
-        return len(self.qrcodes) == 0
-
-    # Detect QR codes.
-    def detect(self):
-        img = cv2.imread(str(self.image_path))
-        detected_qrcodes = decode(img, symbols=[ZBarSymbol.QRCODE])
-        # Loop over the detected QR codes.
-        for qr in detected_qrcodes:
-            qr_code = {
-                "id": qr.data.decode("utf-8"),
-                "points2D": np.asarray(qr.polygon, dtype=float).tolist(),
-            }
-            self.qrcodes.append(qr_code)
-
-    def load(self, path):
-        if not Path(path).is_file():
-            raise FileNotFoundError(str(path))
-        if Path(path).stat().st_size == 0:
-            return []
-        with open(path) as json_file:
-            self.qrcodes = json.load(json_file)
-
-    def save(self, path):
-        Path(path).parent.mkdir(exist_ok=True, parents=True)
-        if not self.qrcodes:
-            Path(path).touch()
-        else:
-            with open(path, "w") as json_file:
-                json.dump(self.qrcodes, json_file, indent=2)
-
-    def show(self, markersize=1):
-        img = cv2.imread(str(self.image_path))
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        plt.figure(0, figsize=(30, 70))
-        plt.imshow(img)
-
-        for qr in self.qrcodes:
-            # ! pyzbar returns points in the following order:
-            # !     1. top-left, 2. bottom-left, 3. bottom-right, 4. top-right
-            print("[INFO] Found {}: {}".format("QR Code", qr["id"]))
-            print(qr["points2D"])
-            (x, y) = qr["points2D"][0]
-            plt.plot(x, y, "m.", markersize)
-            (x, y) = qr["points2D"][1]
-            plt.plot(x, y, "g.", markersize)
-            (x, y) = qr["points2D"][2]
-            plt.plot(x, y, "b.", markersize)
-            (x, y) = qr["points2D"][3]
-            plt.plot(x, y, "r.", markersize)
-        plt.show()
-
-
-# Load QR map from json file.
-def load_qr_map(path):
-    with open(path) as json_file:
-        print("Loading QR code poses from file:", path)
-        qr_map = json.load(json_file)
-        return qr_map
-
-
-# Save QR map to json file.
-def save_qr_map(qr_map, path):
-    with open(path, "w") as json_file:
-        print("Saving qr_map to file:", path)
-        json.dump(qr_map, json_file, indent=2)
-
-
-def run_qrcode_detection(
-    capture: Capture, session_id: str, mesh_id: str = "mesh"
-):
-    session = capture.sessions[session_id]
-    output_dir = capture.data_path(session_id)
-
-    assert session.proc is not None
-    assert session.proc.meshes is not None
-    assert mesh_id in session.proc.meshes
-    assert session.images is not None
-
-    mesh_path = capture.proc_path(session_id) / session.proc.meshes[mesh_id]
-    mesh = read_mesh(mesh_path)
-    renderer = Renderer(mesh)
-
-    qrcode_dir = output_dir / "qrcodes"
-    qrcode_dir.mkdir(exist_ok=True, parents=True)
-
-    qr_map = []
-    for ts, cam_id in tqdm(session.images.key_pairs()):
-        pose_cam2w = session.trajectories[ts, cam_id]
-        camera = session.sensors[cam_id]
-
-        image_path = output_dir / session.images[ts, cam_id]
-        qrcodes = QRCodeDetector(image_path)
-
-        qrcode_path = qrcode_dir / session.images[ts, cam_id]
-        qrcode_path = qrcode_path.with_suffix(".qrcode.json")
-
-        if qrcode_path.is_file():
-            qrcodes.load(qrcode_path)
-        else:
-            qrcodes.detect()
-            qrcodes.save(qrcode_path)
-        # qrcodes.show(markersize=2)
-        logger.info(qrcodes)
-
-        # Create QR map from detected QR codes.
-        for qr in qrcodes:
-            points2D = np.asarray(qr["points2D"])
-
-            # Ray casting.
-            origins, directions = compute_rays(pose_cam2w, camera, p2d=points2D)
-            intersections, intersected = renderer.compute_intersections(
-                (origins, directions)
-            )
-
-            # Verify all rays intersect the mesh.
-            if not intersected.all() and len(intersected) == 4:
-                logger.warning(
-                    "QR code %s doesn't intersected in all points.", qr["id"]
-                )
-                continue
-
-            # 3D points from ray casting, intersection with mesh.
-            points3D_world = intersections
-
-            # QR code indices:
-            #   0. top-left,
-            #   1. bottom-left,
-            #   2. bottom-right,
-            #   3. top-right
-            #
-            #
-            # QR code coordinate system:
-            #        ^
-            #       /
-            #      / z-axis
-            #     /
-            #   0. ---- x-axis --->  3.
-            #   |
-            #   |
-            #   y-axis
-            #   |
-            #   |
-            #   v
-            #   1.                   2.
-            #
-
-            world_T_qr = np.zeros((4, 4))
-            world_T_qr[3, 3] = 1
-
-            # Translation (QR to World).
-            world_T_qr[0:3, 3] = points3D_world[0]
-
-            # Rotation (QR to World).
-            # x-axis.
-            v = points3D_world[3] - points3D_world[0]
-            x_axis = v / np.linalg.norm(v)
-            world_T_qr[0:3, 0] = x_axis
-
-            # y-axis.
-            v = points3D_world[1] - points3D_world[0]
-            y_axis = v / np.linalg.norm(v)
-            world_T_qr[0:3, 1] = y_axis
-
-            # z-axis (cross product, right-hand coordinate system).
-            z_axis = np.cross(x_axis, y_axis)
-            world_T_qr[0:3, 2] = z_axis
-
-            R = world_T_qr[0:3, 0:3]
-
-            if math.isnan(np.linalg.det(R)):
-                continue
-
-            # Append current QR to the QR map.
-            QR = {
-                "id": qr["id"],  # String in the QR code.
-                "timestamp": ts,
-                "cam_id": cam_id,
-                "points2D": points2D.tolist(),
-                "points3D": points3D_world.tolist(),
-                "world_T_qr": world_T_qr.reshape(1, 16).tolist(),
-                "world_T_cam": pose_cam2w.to_4x4mat().reshape(1, 16).tolist(),
-            }
-
-            print(QR)
-            qr_map.append(QR)
-    save_qr_map(qr_map, qrcode_dir / "qr_map.json")
+description = """
+This script is used for QR code detection. The script saves the QR map (list of
+all QR codes) in the `CAPTURE_PATH/proc/qrcodes/` directory. The QR map can be
+saved in both TXT and JSON formats. The TXT format is used for compatibility
+with the rest of CAPTURE format. The JSON format is used for convince but
+disabled by default. The script also saves the detected QR codes for each image.
+These are saved in the `CAPTURE_PATH/proc/qrcodes/` directory with the same name
+as the image file, but with the `.qrcodes.txt` suffix. These files are used to
+load the QR codes if they have already been detected for the image. This is
+useful when we want to re-run the script without having to detect the QR codes
+again.
+"""
 
 
 def run(
@@ -234,6 +36,7 @@ def run(
     sessions: Optional[List[str]] = None,
     navvis_dir: Optional[Path] = None,
     visualization: bool = True,
+    **kargs,
 ):
     if capture_path.exists():
         capture = Capture.load(capture_path)
@@ -262,12 +65,10 @@ def run(
             or mesh_id not in capture.sessions[session].proc.meshes
         ):
             logger.info("Meshing session %s.", session)
-            run_meshing.run(
-                capture,
-                session,
-            )
+            run_meshing.run(capture, session)
 
-        run_qrcode_detection(capture, session)
+        # Detect QR codes in the session.
+        run_qrcode_detection_session(capture, session, **kargs)
 
         if visualization:
             to_meshlab_visualization.run(
@@ -280,8 +81,100 @@ def run(
             )
 
 
+def run_qrcode_detection_session(
+    capture: Capture,
+    session_id: str,
+    mesh_id: str = "mesh",
+    txt_format: bool = True,
+    json_format: bool = False,
+):
+    """
+    Detect QR codes in the images of a session and save them to a file (qr_map).
+
+    Parameters:
+     - capture (Capture): Capture object containing the images and sessions.
+     - session_id (str): ID of the session to process.
+     - mesh_id (str, optional): ID of the mesh to use. Defaults to "mesh".
+     - txt_format (bool, optional): Whether to save the QR map in TXT format.
+       Defaults to True.
+     - json_format (bool, optional): Whether to save the QR map in JSON format.
+       Defaults to False.
+
+    Returns: None
+    """
+    # Detect QR codes in images (parallel). If a file already exists at
+    # `qrcode_path`, the function will load the QR codes from it instead of
+    # detecting them again in the image. Otherwise, it detects the QR codes in
+    # the image and saves them to `qrcode_path`.
+    detect_qr_codes_parallel(capture, session_id)
+
+    # Get list of all QR codes (qr_map).
+    qr_map = create_qr_map(capture, session_id, mesh_id)
+
+    # Filtering QR codes, keeping the one with the largest area per ID.
+    qr_map_filtered = filter_qr_codes_by_area(qr_map)
+
+    # Save list of QR codes.
+    qrcode_dir = capture.proc_path(session_id) / "qrcodes"
+    qrcode_dir.mkdir(exist_ok=True, parents=True)
+    save_qr_maps(qr_map, qr_map_filtered, qrcode_dir, json_format, txt_format)
+
+
+def detect_qr_codes_parallel(capture: Capture, session_id: str):
+    """
+    Detect QR codes in images in parallel and save them to files.
+
+    Parameters:
+    capture (Capture): Capture object containing the images and sessions.
+    session_id (str): ID of the session to process.
+    """
+    # Prepare paths.
+    output_dir = capture.proc_path(session_id)
+    session = capture.sessions[session_id]
+    assert session.images is not None
+    image_dir = capture.data_path(session_id)
+    qrcode_dir = output_dir / "qrcodes"
+    qrcode_dir.mkdir(exist_ok=True, parents=True)
+    suffix = ".qrcodes.txt"
+
+    logger.info("Detecting QR codes in parallel.")
+    pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
+    for ts, cam_id in session.images.key_pairs():
+        filename = session.images[ts, cam_id]
+        image_path = image_dir / filename
+        qrcode_path = (qrcode_dir / filename).with_suffix(suffix)
+        pool.apply_async(
+            _detect_or_load_qr_codes, args=(image_path, qrcode_path)
+        )
+    pool.close()
+    pool.join()
+
+
+def _detect_or_load_qr_codes(image_path: Path, qrcode_path: Path):
+    """
+    Detect QR codes in an image and save them to a file, or load them if they
+    already exist.
+
+    This function creates a QRCodeDetector object for the given image. If a file
+    already exists at the specified QR code path, it loads the QR codes from
+    this file. Otherwise, it detects the QR codes in the image and saves them to
+    the file. After processing the QR codes, it logs the name of the image file.
+
+    Parameters:
+    - image_path (Path): The path to the image file.
+    - qrcode_path (Path): The path to the QR codes file (saved or loaded from).
+    """
+    qrcodes = QRCodeDetector(image_path)
+    if qrcode_path.is_file():
+        qrcodes.load(qrcode_path)
+    else:
+        qrcodes.detect()
+        qrcodes.save(qrcode_path)
+    logger.info(f"Processed QR codes for {image_path.name}")
+
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
         "--capture_path",
         type=Path,
@@ -310,10 +203,22 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--visualization",
-        type=Path,
+        action=argparse.BooleanOptionalAction,
         default=True,
-        required=False,
-        help="Write out MeshLab visualization.",
+        help="Write out MeshLab visualization. Default: True. "
+        "Pass --no-visualization to set to False.",
+    )
+    parser.add_argument(
+        "--txt_format",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Write out QR maps in txt format. Default: True.",
+    )
+    parser.add_argument(
+        "--json_format",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Write out QR maps in json format. Default: False.",
     )
     args = parser.parse_args().__dict__
 
