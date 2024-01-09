@@ -18,12 +18,18 @@ from ..utils.geometry import to_homogeneous
 from ..utils.io import read_mesh
 
 
-def compute_rays(T_cam2w: Pose, camera: Camera, stride: int = 1):
-    w, h = np.array((camera.width, camera.height)) // stride
+def compute_rays(T_cam2w: Pose, camera: Camera, stride: int = 1, p2d: np.ndarray = None):
     center = T_cam2w.t
-    origins = np.tile(center.astype(np.float32)[None], (h*w, 1))
 
-    p2d = np.mgrid[:h, :w].reshape(2, -1)[::-1].T.astype(np.float32)
+    # If p2d (2D points) is not provided, we compute rays for the entire image.
+    if p2d is None:
+        w, h = np.array((camera.width, camera.height)) // stride
+        p2d = np.mgrid[:h, :w].reshape(2, -1)[::-1].T.astype(np.float32)
+        num_rays = h*w
+    else:
+        num_rays = len(p2d)
+
+    origins = np.tile(center.astype(np.float32)[None], (num_rays, 1))
     p2d += 0.5  # to COLMAP coordinates
     if stride != 1:
         p2d *= stride

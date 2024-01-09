@@ -111,8 +111,15 @@ class Tiles:
                 raise ValueError("Non-implemented tile format:", tile_format, "for device:", self.device)
 
         elif self.device == 'VLX':
+            # no tiles
+            if tile_format is TileFormat.TILES_none:
+                self.zoom_factor = 4
+                self.width = img_width
+                self.height = img_height
+                self.angles.append([0, 0, 0])
+
             # tiles 2x2
-            if tile_format == TileFormat.TILES_2x2:
+            elif tile_format == TileFormat.TILES_2x2:
                 self.zoom_factor = 1.5
                 size_reduction = 2
                 self.width = int(img_width / size_reduction)
