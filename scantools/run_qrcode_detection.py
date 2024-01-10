@@ -33,8 +33,8 @@ again.
 
 def run(
     capture_path: Path,
+    navvis_path: Optional[Path] = None,
     sessions: Optional[List[str]] = None,
-    navvis_dir: Optional[Path] = None,
     visualization: bool = True,
     **kargs,
 ):
@@ -43,23 +43,19 @@ def run(
     else:
         capture = Capture(sessions={}, path=capture_path)
 
-    tiles_format = "none"
-    mesh_id = "mesh"
+        logger.info("Convert NavVis data to CAPTURE format: ", navvis_path)
+        # Typically, QR codes are captured intentionally by approaching them
+        # closely. As a result, we don't need tiling, which could potentially
+        # split the QR code across multiple tiles.
+        tiles_format = "none"
+        run_navvis_to_capture.run(navvis_path, capture, tiles_format)
 
     # If `sessions` is not provided, run for all sessions in the `capture_path`.
     if sessions is None:
         sessions = capture.sessions.keys()
 
+    mesh_id = "mesh"
     for session in sessions:
-        if session not in capture.sessions:
-            logger.info("Exporting NavVis session %s.", session)
-            run_navvis_to_capture.run(
-                navvis_dir / session,
-                capture,
-                tiles_format,
-                session,
-            )
-
         if (
             not capture.sessions[session].proc
             or mesh_id not in capture.sessions[session].proc.meshes
@@ -188,18 +184,19 @@ if __name__ == "__main__":
         type=str,
         default=None,
         required=False,
-        help="List of sessions to process. If not provided, it will process all "
-        "sessions in the `capture_path`. Useful when we want to process only "
-        "some sessions.",
+        help="[Optional] List of sessions to process. If not provided, all "
+        "sessions in the `capture_path` are processed. Useful when "
+        "processing only specific sessions.",
     )
     parser.add_argument(
-        "--navvis_dir",
+        "--navvis_path",
         type=Path,
         default=None,
         required=False,
-        help="Input NavVis data path, used if `--capture_path` doesn't exist. "
-        "This could be useful when we have already converted to capture format "
-        "and we don't have the original NavVis data anymore.",
+        help="[Optional] Specifies NavVis data path. This argument is ignored "
+        "if `--capture_path` exists, which is useful when the data has already "
+        "been converted to the CAPTURE format and the original NavVis data is no "
+        "longer available.",
     )
     parser.add_argument(
         "--visualization",
