@@ -11,7 +11,7 @@ from tqdm import tqdm
 from scantools import logger
 from scantools.capture import Capture, Pose
 from scantools.proc.rendering import Renderer, compute_rays
-from scantools.qr.detector import QRCodeDetector
+from scantools.proc.qrcode.detector import QRCodeDetector
 from scantools.utils.io import read_mesh
 
 

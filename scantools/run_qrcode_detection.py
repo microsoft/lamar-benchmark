@@ -10,8 +10,8 @@ from scantools import (
     to_meshlab_visualization,
 )
 from scantools.capture import Capture
-from scantools.qr.detector import QRCodeDetector
-from scantools.qr.map import (
+from scantools.proc.qrcode.detector import QRCodeDetector
+from scantools.proc.qrcode.map import (
     create_qr_map,
     filter_qr_codes_by_area,
     save_qr_maps,
