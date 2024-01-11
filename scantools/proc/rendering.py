@@ -25,11 +25,8 @@ def compute_rays(T_cam2w: Pose, camera: Camera, stride: int = 1, p2d: np.ndarray
     if p2d is None:
         w, h = np.array((camera.width, camera.height)) // stride
         p2d = np.mgrid[:h, :w].reshape(2, -1)[::-1].T.astype(np.float32)
-        num_rays = h*w
-    else:
-        num_rays = len(p2d)
 
-    origins = np.tile(center.astype(np.float32)[None], (num_rays, 1))
+    origins = np.tile(center.astype(np.float32)[None], (len(p2d), 1))
     p2d += 0.5  # to COLMAP coordinates
     if stride != 1:
         p2d *= stride
