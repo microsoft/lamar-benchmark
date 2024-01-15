@@ -209,6 +209,7 @@ Here are runfiles that could be handy for importing and exporting data:
 - `run_image_anonymization`: anonymize faces and license plates using the [Brighter.AI](https://brighter.ai/) API
 - `run_radio_anonymization`: anonymize radio signal IDs
 - `run_combine_sequences`: combine multiple sequence sessions into a single session
+- `run_qrcode_detection`: detect QR codes in images and store their poses
 
 ## Raw data
 
