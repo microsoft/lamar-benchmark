@@ -35,6 +35,7 @@ def run(
     capture_path: Path,
     navvis_path: Optional[Path] = None,
     sessions: Optional[List[str]] = None,
+    use_simplified_mesh: bool = False,
     visualization: bool = True,
     **kargs,
 ):
@@ -55,6 +56,8 @@ def run(
         sessions = capture.sessions.keys()
 
     mesh_id = "mesh"
+    if use_simplified_mesh:
+        mesh_id += "_simplified"
     for session in sessions:
         if (
             not capture.sessions[session].proc
@@ -64,7 +67,7 @@ def run(
             run_meshing.run(capture, session)
 
         # Detect QR codes in the session.
-        run_qrcode_detection_session(capture, session, **kargs)
+        run_qrcode_detection_session(capture, session, mesh_id, **kargs)
 
         if visualization:
             to_meshlab_visualization.run(
@@ -80,7 +83,7 @@ def run(
 def run_qrcode_detection_session(
     capture: Capture,
     session_id: str,
-    mesh_id: str = "mesh",
+    mesh_id: str,
     txt_format: bool = True,
     json_format: bool = False,
 ):
@@ -197,6 +200,13 @@ if __name__ == "__main__":
         "if `--capture_path` exists, which is useful when the data has already "
         "been converted to the CAPTURE format and the original NavVis data is no "
         "longer available.",
+    )
+    parser.add_argument(
+        "--use_simplified_mesh",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Use simplified mesh. Default: False. Pass --use_simplified_mesh "
+        "to set to True. This is useful for large scenes.",
     )
     parser.add_argument(
         "--visualization",
