@@ -5,7 +5,7 @@ PS4='\033[1;96m$(date +%H:%M:%S)\033[0m '
 set -exo pipefail
 
 # Clone raybender.
-git clone --recursive https://github.com/cvg/raybender.git
+git clone --recursive https://github.com/cvg/raybender.git --depth=1
 cd raybender
 
 # Install Embree following the official instructions and set the environmental
@@ -17,11 +17,7 @@ rm embree-3.12.2.x86_64.linux.tar.gz
 mv embree-3.12.2.x86_64.linux embree-3.12.2
 export embree_DIR=`readlink -f embree-3.12.2/lib/cmake/embree-3.12.2`
 
-# Install RayBender.
-# pip install git+https://github.com/cvg/raybender.git -vv
-pip install . -vv
-
-# pip wheel --no-deps -w dist-wheel .
-# whl_path=$(find dist-wheel/ -name "*.whl")
-# pip install $whl_path
-# echo $whl_path >dist-wheel/whl_path.txt
+# Build the wheel.
+pip wheel --no-deps -w dist-wheel .
+whl_path=$(find dist-wheel/ -name "*.whl")
+echo $whl_path >dist-wheel/whl_path.txt
