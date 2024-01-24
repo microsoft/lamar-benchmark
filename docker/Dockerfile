@@ -59,17 +59,17 @@ RUN apt-get install -y --no-install-recommends --no-install-suggests \
 # Install raybender.
 COPY --from=builder /raybender/embree-3.12.2/lib /raybender/embree-3.12.2/lib
 COPY --from=builder /raybender/dist-wheel /tmp/dist-wheel
-RUN cd /tmp && whl_path=$(cat dist-wheel/whl_path.txt) && pip install $whl_path
+RUN cd /tmp && whl_path=$(cat dist-wheel/whl_path.txt) && python3 -m pip install $whl_path
 RUN rm -rfv /tmp/*
 
 # Install pcdmeshing.
 COPY --from=builder /pcdmeshing/dist-wheel /tmp/dist-wheel
 RUN sudo apt-get install -y --no-install-recommends --no-install-suggests \
         libmpfrc++-dev
-RUN cd /tmp && whl_path=$(cat dist-wheel/whl_path.txt) && pip install $whl_path
+RUN cd /tmp && whl_path=$(cat dist-wheel/whl_path.txt) && python3 -m pip install $whl_path
 RUN rm -rfv /tmp/*
 
-RUN pip install --no-deps \
+RUN python3 -m pip install --no-deps \
         astral==3.2 \
         beautifulsoup4==4.12.2 \
         lxml==4.9.2 \
@@ -80,7 +80,7 @@ RUN pip install --no-deps \
         pytijo==0.0.2 \
         pyzbar-upright==0.1.8 \
         scipy==1.11.4
-RUN cd lamar && pip install -e .[scantools] --no-deps
+RUN cd lamar && python3 -m pip install -e .[scantools] --no-deps
 
 #
 # pyceres-builder stage.
@@ -146,6 +146,7 @@ RUN wget "https://github.com/colmap/colmap/archive/refs/tags/${COLMAP_VERSION}.t
 RUN cp -r /colmap_installed/* /usr/local/
 
 # Build pyceres.
+# Todo: Use the official pyceres wheel when it is available.
 RUN git clone --depth 1 -b update-colmap-3.9-and-docker-image --recursive https://github.com/pablospe/pyceres
 RUN cd pyceres && \
     pip wheel --no-deps -w dist-wheel . && \
@@ -162,7 +163,7 @@ COPY --from=pyceres-builder /colmap_installed/ /usr/local/
 
 # Install pyceres.
 COPY --from=pyceres-builder /pyceres/dist-wheel /tmp/dist-wheel
-RUN cd /tmp && whl_path=$(cat dist-wheel/whl_path.txt) && pip install $whl_path
+RUN cd /tmp && whl_path=$(cat dist-wheel/whl_path.txt) && python3 -m pip install $whl_path
 RUN rm -rfv /tmp/*
 
 #
@@ -172,17 +173,17 @@ FROM pyceres as lamar
 
 # Install hloc.
 COPY --from=builder /hloc/dist-wheel /tmp/dist-wheel
-RUN cd /tmp && whl_path=$(cat dist-wheel/whl_path.txt) && pip install $whl_path
+RUN cd /tmp && whl_path=$(cat dist-wheel/whl_path.txt) && python3 -m pip install $whl_path
 RUN rm -rfv /tmp/*
 
 # Note: The dependencies listed in pyproject.toml also include pycolmap and
 # pyceres. These are already installed in previous Docker stages. Attempting to
 # compile them in this stage will lead to failure due to missing necessary
 # development dependencies.
-RUN pip install --no-deps \
+RUN python3 -m pip install --no-deps \
         h5py==3.10.0 \
         numpy==1.26.3 \
         torch>=1.1 \
         tqdm>=4.36.0
 
-RUN cd /lamar && pip install -e .  --no-deps
+RUN cd /lamar && python3 -m pip install -e .  --no-deps
