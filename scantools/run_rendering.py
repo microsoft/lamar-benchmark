@@ -41,7 +41,7 @@ def run(capture: Capture, session_id: str, mesh_id: str = 'mesh',
         rgb, depth_map = renderer.render_from_capture(pose_cam2w, camera)
 
         image_path = session.images[ts, camera_id]
-		depth_path = Path(prefix, image_path).as_posix() + '.depth.png'
+        depth_path = Path(prefix, image_path).with_suffix('.depth.png')
         depths[ts, camera_id] = depth_path.as_posix()
 
         output_path = output_dir / depth_path
