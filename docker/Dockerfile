@@ -146,8 +146,7 @@ RUN wget "https://github.com/colmap/colmap/archive/refs/tags/${COLMAP_VERSION}.t
 RUN cp -r /colmap_installed/* /usr/local/
 
 # Build pyceres.
-# Todo: Use the official pyceres wheel when it is available.
-RUN git clone --depth 1 -b update-colmap-3.9-and-docker-image --recursive https://github.com/pablospe/pyceres
+RUN git clone --depth 1 -b update-colmap-3.9-and-docker-image --recursive https://github.com/cvg/pyceres
 RUN cd pyceres && \
     pip wheel --no-deps -w dist-wheel . && \
     whl_path=$(find dist-wheel/ -name "*.whl") && \
@@ -176,14 +175,15 @@ COPY --from=builder /hloc/dist-wheel /tmp/dist-wheel
 RUN cd /tmp && whl_path=$(cat dist-wheel/whl_path.txt) && python3 -m pip install $whl_path
 RUN rm -rfv /tmp/*
 
-# Note: The dependencies listed in pyproject.toml also include pycolmap and
-# pyceres. These are already installed in previous Docker stages. Attempting to
-# compile them in this stage will lead to failure due to missing necessary
-# development dependencies.
+# Note: The dependencies listed in pyproject.toml also include pyceres, already
+# installed in previous Docker stages. Attempting to compile it in this stage
+# will lead to failure due to missing necessary development dependencies.
+# Therefore, we replicate the dependencies here, excluding pyceres
 RUN python3 -m pip install --no-deps \
         h5py==3.10.0 \
         numpy==1.26.3 \
         torch>=1.1 \
-        tqdm>=4.36.0
+        tqdm>=4.36.0 \
+        pycolmap==0.6.0
 
 RUN cd /lamar && python3 -m pip install -e .  --no-deps
