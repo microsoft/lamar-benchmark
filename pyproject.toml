@@ -26,7 +26,7 @@ scantools = [
     "astral==3.2",
     "beautifulsoup4==4.12.2",
     "lxml==4.9.2",
-    "matplotlib",
+    "matplotlib==3.8.2",
     "open3d==0.18.0",
     "opencv-python==4.7.0.72",
     "plyfile==1.0.3",
