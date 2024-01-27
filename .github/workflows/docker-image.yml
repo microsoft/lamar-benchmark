@@ -29,6 +29,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
+          working-directory: ./docker
           file: ./docker/Dockerfile
           push: true
           tags: ghcr.io/pablospe/lamar-benchmark/scantools:latest
