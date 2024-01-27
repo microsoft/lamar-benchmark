@@ -146,7 +146,7 @@ RUN wget "https://github.com/colmap/colmap/archive/refs/tags/${COLMAP_VERSION}.t
 RUN cp -r /colmap_installed/* /usr/local/
 
 # Build pyceres.
-RUN git clone --depth 1 -b update-colmap-3.9-and-docker-image --recursive https://github.com/cvg/pyceres
+RUN git clone --depth 1 --recursive https://github.com/cvg/pyceres
 RUN cd pyceres && \
     pip wheel --no-deps -w dist-wheel . && \
     whl_path=$(find dist-wheel/ -name "*.whl") && \
