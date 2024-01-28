@@ -25,13 +25,18 @@ jobs:
       # - name: Build the Docker image
       #   run: docker build . --file docker/Dockerfile --tag my-image-name:$(date +%s)
 
-      -
-        name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          push: true
-          tags: ghcr.io/pablospe/lamar-benchmark/scantools:latest
-          target: scantools
+      - name: 'Build and push'
+        run: |
+          docker build . --tag ghcr.io/pablospe/lamar-benchmark/common:latest --target common
+          docker push ghcr.io/pablospe/lamar-benchmark/common:latest
+
+      # -
+      #   name: Build and push
+      #   uses: docker/build-push-action@v5
+      #   with:
+      #     push: true
+      #     tags: ghcr.io/pablospe/lamar-benchmark/scantools:latest
+      #     target: scantools
 
       # - name: Build and push Scantools Docker image
       #   uses: docker/build-push-action@v5
