@@ -24,12 +24,13 @@ ADD . /lamar
 #
 FROM common as builder
 
-RUN apt-get install -y --no-install-recommends --no-install-suggests \
-    build-essential \
-    cmake \
-    libeigen3-dev \
-    python3-dev \
-    python3-setuptools
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends --no-install-suggests \
+        build-essential \
+        cmake \
+        libeigen3-dev \
+        python3-dev \
+        python3-setuptools
 
 # Build raybender.
 COPY docker/scripts/build_raybender.sh /tmp/
@@ -48,14 +49,15 @@ RUN bash /tmp/build_hloc.sh && rm /tmp/build_hloc.sh
 #
 FROM common as scantools
 
-RUN apt-get install -y --no-install-recommends --no-install-suggests \
-    libgomp1 \
-    libgl1 \
-    libglib2.0-0 \
-    libsm6 \
-    libxrender1 \
-    libxext6 \
-    libzbar0
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends --no-install-suggests \
+        libgomp1 \
+        libgl1 \
+        libglib2.0-0 \
+        libsm6 \
+        libxrender1 \
+        libxext6 \
+        libzbar0
 
 # Install raybender.
 COPY --from=builder /raybender/embree-3.12.2/lib /raybender/embree-3.12.2/lib
@@ -124,7 +126,7 @@ RUN apt-get update && \
         python3-dev \
         python3-setuptools
 
-# Build Ceres solver.
+# Install Ceres.
 RUN apt-get install -y --no-install-recommends --no-install-suggests wget && \
     wget "http://ceres-solver.org/ceres-solver-2.1.0.tar.gz" && \
     tar zxf ceres-solver-2.1.0.tar.gz && \
@@ -148,8 +150,9 @@ RUN cp -r /colmap_installed/* /usr/local/
 
 # Build pyceres.
 RUN git clone --depth 1 --recursive https://github.com/cvg/pyceres
+RUN python3 -m pip install --upgrade pip
 RUN cd pyceres && \
-    pip wheel --no-deps -w dist-wheel . && \
+    pip wheel . --no-deps -w dist-wheel -vv --config-settings=cmake.define.CMAKE_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES} && \
     whl_path=$(find dist-wheel/ -name "*.whl") && \
     echo $whl_path >dist-wheel/whl_path.txt
 
