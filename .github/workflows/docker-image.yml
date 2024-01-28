@@ -30,7 +30,6 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           push: true
-          file: ./docker/Dockerfile
           tags: ghcr.io/pablospe/lamar-benchmark/scantools:latest
           target: scantools
 
