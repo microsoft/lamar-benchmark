@@ -26,12 +26,22 @@ jobs:
 
       - name: 'Build and push Scantools Docker image'
         run: |
-          docker build . --tag ghcr.io/pablospe/lamar-benchmark/scantools:latest --target scantools
+          DATE=$(date +%Y-%m-%d)
+          docker build . --tag ghcr.io/pablospe/lamar-benchmark/scantools:$DATE --target scantools
+          # if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          docker tag ghcr.io/pablospe/lamar-benchmark/scantools:$DATE \
+                      ghcr.io/pablospe/lamar-benchmark/scantools:latest
+          docker push ghcr.io/pablospe/lamar-benchmark/scantools:$DATE
           docker push ghcr.io/pablospe/lamar-benchmark/scantools:latest
-          docker build . --tag ghcr.io/pablospe/lamar-benchmark/scantools:$(date +%Y-%m-%d) --target scantools
-          docker push ghcr.io/pablospe/lamar-benchmark/scantools:$(date +%Y-%m-%d)
+          # fi
 
       - name: Build and push Lamar Docker image
         run: |
-          docker build . --tag ghcr.io/pablospe/lamar-benchmark/lamar:latest --target lamar
-          docker push ghcr.io/pablospe/lamar-benchmark/lamar:latest
+          DATE=$(date +%Y-%m-%d)
+          docker build . --tag ghcr.io/pablospe/lamar-benchmark/lamar:$DATE --target lamar
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            docker tag ghcr.io/pablospe/lamar-benchmark/lamar:$DATE \
+                       ghcr.io/pablospe/lamar-benchmark/lamar:latest
+            docker push ghcr.io/pablospe/lamar-benchmark/lamar:$DATE
+            docker push ghcr.io/pablospe/lamar-benchmark/lamar:latest
+          fi
