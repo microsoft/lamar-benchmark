@@ -9,23 +9,47 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    # steps:
+    #   - name: Checkout
+    #     uses: actions/checkout@v4
+
+    #   - name: Set up Docker Buildx
+    #     uses: docker/setup-buildx-action@v3
+
+    #   - name: Login to GitHub Container Registry
+    #     uses: docker/login-action@v3
+    #     with:
+    #       registry: ghcr.io
+    #       username: ${{ github.actor }}
+    #       password: ${{ secrets.GITHUB_TOKEN }}
+    #   # - name: Build the Docker image
+    #   #   run: docker build . --file docker/Dockerfile --tag my-image-name:$(date +%s)
+
+    #   - name: Build and push Scantools Docker image
+    #     uses: docker/build-push-action@v5
+    #     with:
+    #       context: .
+    #       working-directory: ./docker
+    #       file: ./docker/Dockerfile
+    #       push: true
+    #       tags: ghcr.io/pablospe/lamar-benchmark/scantools:latest
+    #       target: scantools
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      -
+        name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Login to GitHub Container Registry
+      -
+        name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      # - name: Build the Docker image
-      #   run: docker build . --file docker/Dockerfile --tag my-image-name:$(date +%s)
-
-      - name: Build and push Scantools Docker image
+      -
+        name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -34,6 +58,7 @@ jobs:
           push: true
           tags: ghcr.io/pablospe/lamar-benchmark/scantools:latest
           target: scantools
+
 
 
 # jobs:
