@@ -16,7 +16,8 @@ RUN apt-get update && \
 
 RUN python3 -m pip install --upgrade pip
 
-RUN git clone --depth 1 --recursive https://github.com/microsoft/lamar-benchmark lamar
+# RUN git clone --depth 1 --recursive https://github.com/microsoft/lamar-benchmark lamar
+ADD . /lamar
 
 #
 # Builder stage.
@@ -31,15 +32,15 @@ RUN apt-get install -y --no-install-recommends --no-install-suggests \
     python3-setuptools
 
 # Build raybender.
-COPY scripts/build_raybender.sh /tmp/
+COPY docker/scripts/build_raybender.sh /tmp/
 RUN bash /tmp/build_raybender.sh && rm /tmp/build_raybender.sh
 
 # Build pcdmeshing.
-COPY scripts/build_pcdmeshing.sh /tmp/
+COPY docker/scripts/build_pcdmeshing.sh /tmp/
 RUN bash /tmp/build_pcdmeshing.sh && rm /tmp/build_pcdmeshing.sh
 
 # Build hloc.
-COPY scripts/build_hloc.sh /tmp/
+COPY docker/scripts/build_hloc.sh /tmp/
 RUN bash /tmp/build_hloc.sh && rm /tmp/build_hloc.sh
 
 #
