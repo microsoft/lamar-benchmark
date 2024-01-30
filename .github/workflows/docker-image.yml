@@ -34,6 +34,7 @@ jobs:
             docker push ghcr.io/pablospe/lamar-benchmark/scantools:$DATE
             docker push ghcr.io/pablospe/lamar-benchmark/scantools:latest
           fi
+
       - name: Build and push Lamar Docker image
         run: |
           DATE=$(date +%Y-%m-%d)
