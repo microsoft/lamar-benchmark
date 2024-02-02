@@ -26,7 +26,7 @@ def run(capture: Capture, session_id: str, mesh_id: str = 'mesh',
     depths = session.depths
     if depths is None:
         depths = session.depths = RecordsDepth()
-    output_dir = capture.proc_path(session_id)
+    output_dir = capture.data_path(session_id)
     prefix = 'render'
     for ts, camera_id in tqdm(session.images.key_pairs()):
         if session.rigs is None:
