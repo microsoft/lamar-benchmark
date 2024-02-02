@@ -27,6 +27,7 @@ class NavVis:
         self._input_json_path = None
         self._camera_file_path = None
         self._pointcloud_file_path = None
+        self._trace_path = None
 
         self._output_path = None
         self._output_image_path = None
@@ -34,6 +35,7 @@ class NavVis:
 
         self.__cameras = {}
         self.__frames = {}
+        self.__trace = {}
 
         # upright fix
         self.__upright = upright
@@ -60,6 +62,10 @@ class NavVis:
         # set tiles format
         self.set_tiles_format(tiles_format)
 
+        # mapping path: position, orientation, and magnetic field information in
+        # frequent intervals
+        self.load_trace()
+
     def _set_dataset_paths(self, input_path: Path, output_path: Optional[Path], tiles_format: str):
         # Dataset path
         self._input_path = Path(input_path).absolute()
@@ -75,6 +81,10 @@ class NavVis:
         self._input_json_path = self._input_path / "info"
         if not self._input_json_path.exists():
             raise FileNotFoundError(f'Input json path {self._input_json_path}.')
+
+        # Mapping Path: file trace.csv contains position, orientation, and
+        # magnetic field information in frequent intervals
+        self._trace_path = self._input_path / "artifacts" / "trace.csv"
 
         self._camera_file_path = self._input_path / 'sensor_frame.xml'
 
@@ -176,6 +186,32 @@ class NavVis:
         # save metadata inside the class
         self.__cameras = cameras
 
+    def load_trace(self):
+        expected_columns = [
+            "nsecs",
+            "x",
+            "y",
+            "z",
+            "ori_w",
+            "ori_x",
+            "ori_y",
+            "ori_z",
+            "mag_x",
+            "mag_y",
+            "mag_z",
+        ]
+        input_filepath = self._input_path / "artifacts" / "trace.csv"
+        rows = read_csv(input_filepath)
+        rows = rows[1:]  # remove header
+
+        # convert to dict
+        trace = []
+        for row in rows:
+            row_dict = {column: value for column, value in zip(expected_columns, row)}
+            trace.append(row_dict)
+
+        self.__trace = trace
+
     def get_input_path(self):
         return self._input_path
 
@@ -209,6 +245,9 @@ class NavVis:
 
     def get_cameras(self):
         return self.__cameras
+
+    def get_trace(self):
+        return self.__trace
 
     def get_camera(self, camera_id):
         cam_id = self._convert_cam_id_to_str(camera_id)
@@ -584,6 +623,7 @@ class NavVis:
                     wifi_measurements.append(wifi_measurement)
 
         return wifi_measurements
+
 
 #
 # auxiliary function for parallel computing

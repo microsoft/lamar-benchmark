@@ -54,7 +54,7 @@ def convert_to_us(time_s):
 
 def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optional[str] = None,
         downsample_max_edge: int = None, upright: bool = True, export_as_rig: bool = False,
-        copy_pointcloud: bool = False):
+        export_trace: bool = False, copy_pointcloud: bool = False):
 
     if session_id is None:
         session_id = input_path.name
@@ -67,8 +67,6 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
     camera_ids = nv.get_camera_indexes()
     tiles = nv.get_tiles()
 
-    num_frames = len(frame_ids)
-    num_cameras = len(camera_ids)
     num_tiles = nv.get_num_tiles()
 
     K = nv.get_camera_intrinsics()
@@ -135,6 +133,17 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
                 if not export_as_rig:
                     pose = get_pose(nv, upright, frame_id, camera_id, tile_id)
                     trajectory[timestamp_us, sensor_id] = pose
+
+    if export_trace:
+        sensors['trace'] = create_sensor('trace', name='Mapping path')
+        for trace in nv.get_trace():
+            timestamp_us = int(trace["nsecs"]) // 1_000  # convert from ns to us
+            qvec = np.array([trace["ori_w"], trace["ori_x"], trace["ori_y"], trace["ori_z"]], dtype=np.float64)
+            tvec = np.array([trace["x"], trace["y"], trace["z"]], dtype=np.float64)
+            pose = Pose(r=qvec, t=tvec)
+            trajectory[timestamp_us, 'trace'] = pose
+        # Sort the trajectory by timestamp.
+        trajectory = Trajectories(dict(sorted(trajectory.items())))
 
     pointcloud_id = 'point_cloud_final'
     sensors[pointcloud_id] = create_sensor('lidar', name='final NavVis point cloud')
@@ -206,6 +215,7 @@ if __name__ == '__main__':
     parser.add_argument('--downsample_max_edge', type=int, default=None)
     add_bool_arg(parser, 'upright', default=True)
     add_bool_arg(parser, 'export_as_rig', default=False)
+    add_bool_arg(parser, 'export_trace', default=False)
     parser.add_argument('--copy_pointcloud', action='store_true')
     args = parser.parse_args().__dict__
 
