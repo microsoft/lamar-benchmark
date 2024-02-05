@@ -138,10 +138,14 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
         sensors['trace'] = create_sensor('trace', name='Mapping path')
         for trace in nv.get_trace():
             timestamp_us = int(trace["nsecs"]) // 1_000  # convert from ns to us
-            qvec = np.array([trace["ori_w"], trace["ori_x"], trace["ori_y"], trace["ori_z"]], dtype=np.float64)
-            tvec = np.array([trace["x"], trace["y"], trace["z"]], dtype=np.float64)
-            pose = Pose(r=qvec, t=tvec)
-            trajectory[timestamp_us, 'trace'] = pose
+            qvec = np.array([trace["ori_w"], trace["ori_x"], trace["ori_y"], trace["ori_z"]], dtype=float)
+            tvec = np.array([trace["x"], trace["y"], trace["z"]], dtype=float)
+            world_from_device = Pose(r=qvec, t=tvec)
+            if export_as_rig:
+                trajectory[timestamp_us, 'trace'] = rig_from_world * world_from_device
+            else:
+                trajectory[timestamp_us, 'trace'] = world_from_device
+
         # Sort the trajectory by timestamp.
         trajectory = Trajectories(dict(sorted(trajectory.items())))
 
