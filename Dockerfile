@@ -1,7 +1,5 @@
-# FROM mcr.microsoft.com/mirror/docker/library/ubuntu:22.04 AS common
 ARG UBUNTU_VERSION=22.04
-ARG NVIDIA_CUDA_VERSION=12.3.1
-FROM nvidia/cuda:${NVIDIA_CUDA_VERSION}-runtime-ubuntu${UBUNTU_VERSION} as common
+FROM mcr.microsoft.com/mirror/docker/library/ubuntu:${UBUNTU_VERSION} AS common
 
 # Minimal toolings.
 RUN apt-get update && \
@@ -16,13 +14,12 @@ RUN apt-get update && \
 
 RUN python3 -m pip install --upgrade pip
 
-# RUN git clone --depth 1 --recursive https://github.com/microsoft/lamar-benchmark lamar
 ADD . /lamar
 
 #
 # Builder stage.
 #
-FROM common as builder
+FROM common AS builder
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --no-install-suggests \
@@ -47,7 +44,7 @@ RUN bash /tmp/build_hloc.sh && rm /tmp/build_hloc.sh
 #
 # Scantools stage.
 #
-FROM common as scantools
+FROM common AS scantools
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --no-install-suggests \
@@ -88,15 +85,7 @@ RUN cd lamar && python3 -m pip install -e .[scantools] --no-deps
 #
 # pyceres-builder stage.
 #
-FROM nvidia/cuda:${NVIDIA_CUDA_VERSION}-devel-ubuntu${UBUNTU_VERSION} as pyceres-builder
-
-ARG COLMAP_VERSION=3.9.1
-ARG CUDA_ARCHITECTURES=70
-ENV CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES}
-ENV QT_XCB_GL_INTEGRATION=xcb_egl
-
-# Prevent stop building ubuntu at time zone selection.
-ENV DEBIAN_FRONTEND=noninteractive
+FROM mcr.microsoft.com/mirror/docker/library/ubuntu:${UBUNTU_VERSION} AS pyceres-builder
 
 # Prepare and empty machine for building.
 RUN apt-get update && \
@@ -105,21 +94,12 @@ RUN apt-get update && \
         cmake \
         ninja-build \
         build-essential \
-        libboost-program-options-dev \
-        libboost-filesystem-dev \
-        libboost-graph-dev \
-        libboost-system-dev \
         libeigen3-dev \
-        libflann-dev \
-        libfreeimage-dev \
-        libmetis-dev \
         libgoogle-glog-dev \
+        libgflags-dev \
         libgtest-dev \
-        libsqlite3-dev \
-        libglew-dev \
-        qtbase5-dev \
-        libqt5opengl5-dev \
-        libcgal-dev \
+        libatlas-base-dev \
+        libsuitesparse-dev \
         python-is-python3 \
         python3-minimal \
         python3-pip \
@@ -137,22 +117,11 @@ RUN apt-get install -y --no-install-recommends --no-install-suggests wget && \
     ninja install
 RUN cp -r /ceres_installed/* /usr/local/
 
-# Install Colmap.
-RUN wget "https://github.com/colmap/colmap/archive/refs/tags/${COLMAP_VERSION}.tar.gz" -O colmap-${COLMAP_VERSION}.tar.gz && \
-    tar zxvf colmap-${COLMAP_VERSION}.tar.gz && \
-    mkdir colmap-build && \
-    cd colmap-build && \
-    cmake ../colmap-${COLMAP_VERSION} -GNinja \
-        -DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES} \
-        -DCMAKE_INSTALL_PREFIX=/colmap_installed && \
-    ninja install
-RUN cp -r /colmap_installed/* /usr/local/
-
 # Build pyceres.
 RUN git clone --depth 1 --recursive https://github.com/cvg/pyceres
 RUN python3 -m pip install --upgrade pip
 RUN cd pyceres && \
-    pip wheel . --no-deps -w dist-wheel -vv --config-settings=cmake.define.CMAKE_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES} && \
+    pip wheel . --no-deps -w dist-wheel -vv && \
     whl_path=$(find dist-wheel/ -name "*.whl") && \
     echo $whl_path >dist-wheel/whl_path.txt
 
@@ -161,12 +130,24 @@ RUN cd pyceres && \
 #
 FROM scantools as pyceres
 
+# Install minimal runtime dependencies.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends --no-install-suggests \
+        libgoogle-glog0v5 \
+        libspqr2 \
+        libcxsparse3 \
+        libatlas3-base \
+        python-is-python3 \
+        python3-minimal \
+        python3-pip
+
+# Copy installed library in the builder stage.
 COPY --from=pyceres-builder /ceres_installed/ /usr/local/
-COPY --from=pyceres-builder /colmap_installed/ /usr/local/
 
 # Install pyceres.
 COPY --from=pyceres-builder /pyceres/dist-wheel /tmp/dist-wheel
-RUN cd /tmp && whl_path=$(cat dist-wheel/whl_path.txt) && python3 -m pip install $whl_path
+RUN pip install --upgrade pip
+RUN cd /tmp && whl_path=$(cat dist-wheel/whl_path.txt) && pip install $whl_path
 RUN rm -rfv /tmp/*
 
 #
