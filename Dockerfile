@@ -81,6 +81,7 @@ RUN python3 -m pip install --no-deps \
         pyzbar-upright==0.1.8 \
         scipy==1.11.4
 RUN cd lamar && python3 -m pip install -e .[scantools] --no-deps
+WORKDIR /lamar
 
 #
 # pyceres-builder stage.
@@ -172,3 +173,4 @@ RUN python3 -m pip install --no-deps \
         pycolmap==0.6.0
 
 RUN cd /lamar && python3 -m pip install -e .  --no-deps
+WORKDIR /lamar

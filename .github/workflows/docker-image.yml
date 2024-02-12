@@ -28,12 +28,12 @@ jobs:
         run: |
           DATE=$(date +%Y-%m-%d)
           docker build . --tag ghcr.io/pablospe/lamar-benchmark/scantools:$DATE --target scantools
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          # if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             docker tag ghcr.io/pablospe/lamar-benchmark/scantools:$DATE \
                         ghcr.io/pablospe/lamar-benchmark/scantools:latest
             docker push ghcr.io/pablospe/lamar-benchmark/scantools:$DATE
             docker push ghcr.io/pablospe/lamar-benchmark/scantools:latest
-          fi
+          # fi
 
       - name: Build and push Lamar Docker image
         run: |
