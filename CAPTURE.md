@@ -25,10 +25,10 @@ location1/                                  # a Capture directory
 │   │   ├── wifi.txt                        # list of wifi measurements
 │   │   ├── raw_data/                       # root path of images, point clouds, etc.
 │   │   │   ├── images_undistorted/
+│   │   │   ├── render/                     # root path for the rgb and depth maps renderings
 │   │   │   └── pointcloud.ply
 │   │   └── proc/                           # root path of processed assets
 │   │       ├── meshes/                     # a collections of meshes
-│   │       ├── render/                     # root path for the rgb and depth maps renderings
 │   │       ├── alignment_global.txt        # global transforms between sessions
 │   │       ├── alignment_trajectories.txt  # transform of each pose to a global reference
 │   │       └── overlaps.h5                 # overlap matrix from this session to others

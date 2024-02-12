@@ -47,11 +47,13 @@ class ScanAlignmentConf(BaseConf):
 
 
 def lift_points_to_3d(p2d: np.ndarray, key: Tuple[int, str], session: Session, data_path: Path,
-                      align: bool = False, depth_prefix: Optional[str] = 'render',
+                      align: bool = False, depth_prefix: Optional[str] = None,
                       ) -> Tuple[np.ndarray, np.ndarray]:
     pose = session.trajectories[key]
     ts, sensor_id = key
     camera = session.sensors[sensor_id]
+    if depth_prefix is None and sensor_id not in session.depths[ts]:
+        depth_prefix = 'render'  # Legacy data format.
     if depth_prefix is not None:
         sensor_id = depth_prefix + '/' + sensor_id
     depth = read_depth(data_path / session.depths[ts, sensor_id])
