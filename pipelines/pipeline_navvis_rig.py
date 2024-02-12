@@ -1,5 +1,6 @@
 import argparse
 import shutil
+import tempfile
 from pathlib import Path
 from typing import List, Optional
 
@@ -105,7 +106,7 @@ def run(
     visualization: bool = True,
     **kargs,
 ):
-    capture_path = output_path or Path.cwd()
+    capture_path = output_path or Path.cwd() / "lamar-capture-format"
 
     if capture_path.exists():
         capture = Capture.load(capture_path)
@@ -155,7 +156,11 @@ def run(
             run_rendering.run(capture, session, mesh_id=mesh_id)
 
         if qrcode_detection:
-            capture_qrcode_path = Path(capture_path.as_posix() + "-qrcode")
+            capture_qrcode_path = Path(tempfile.mkdtemp())
+            logger.info(
+                "Create a temporal folder for the QR code detection output %s.",
+                capture_qrcode_path,
+            )
             capture_qrcode_path.mkdir(exist_ok=True, parents=True)
             capture_qrcode = Capture(sessions={}, path=capture_qrcode_path)
 
