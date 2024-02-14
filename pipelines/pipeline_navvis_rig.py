@@ -35,7 +35,9 @@ depth maps rendering, and QR code detection.
         ├── 2023-12-15_15.45.51
         └── 2023-12-15_15.58.10
 
-    b) The tile format. Default: "3x3".
+    b) Large camera images can be tiled into smaller also overlapping images.
+       The tile format specifies the tiling algorithm. The following values are
+       accepted: ["2x2","3x3","5x5","center","cross","none"]. Default: "3x3".
 
     c) The output path where processed data will be saved. Defaults to the
        current working directory. Example:
