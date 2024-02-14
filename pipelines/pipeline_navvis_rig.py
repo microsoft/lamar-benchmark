@@ -199,7 +199,7 @@ def run(
                 capture,
                 session,
                 f"trajectory_{session}",
-                export_mesh=True,
+                export_mesh=meshing,
                 export_poses=True,
                 mesh_id=mesh_id,
             )
