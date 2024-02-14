@@ -67,8 +67,6 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
     camera_ids = nv.get_camera_indexes()
     tiles = nv.get_tiles()
 
-    num_frames = len(frame_ids)
-    num_cameras = len(camera_ids)
     num_tiles = nv.get_num_tiles()
 
     K = nv.get_camera_intrinsics()
@@ -194,7 +192,8 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
     if copy_pointcloud:
         shutil.copy(str(nv.get_pointcloud_path()), str(output_path))
     else:
-        (output_path / pointcloud_filename).symlink_to(nv.get_pointcloud_path())
+        if not (output_path / pointcloud_filename).exists():
+            (output_path / pointcloud_filename).symlink_to(nv.get_pointcloud_path())
 
 
 if __name__ == '__main__':

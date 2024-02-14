@@ -123,7 +123,7 @@ class Session:
             pose = T_rig2world * T_sensor2rig
         return pose
 
-    def save(self, path: Path):
+    def save(self, path: Path, overwrite : bool = True):
         path.mkdir(exist_ok=True, parents=True)
         for attr in fields(self):
             if attr.name == 'id':
@@ -132,7 +132,7 @@ class Session:
             if data is None:
                 continue
             filepath = path / self.filename(attr)
-            if filepath.exists() and attr.name != 'proc':
+            if not overwrite and filepath.exists() and attr.name != 'proc':
                 raise IOError(f'File exists: {filepath}')
             data.save(filepath)
         self.id = path.name
