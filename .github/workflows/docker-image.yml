@@ -24,7 +24,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 'Build and push Scantools Docker image'
+      - name: Build and push Scantools Docker image
         run: |
           DATE=$(date +%Y-%m-%d)
           docker build . --tag ghcr.io/microsoft/lamar-benchmark/scantools:$DATE --target scantools

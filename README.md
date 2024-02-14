@@ -104,10 +104,10 @@ docker build --target scantools -t lamar:scantools -f Dockerfile ./
 docker build --target lamar -t lamar:lamar -f Dockerfile ./
 ```
 
-### Pulling the Docker Images from GitHub Docker Register
+### Pulling the Docker Images from GitHub Docker Registry
 
 Alternatively, if you don't want to build the images yourself, you can pull them
-from the GitHub Docker Register using the following commands:
+from the GitHub Docker Registry using the following commands:
 ```bash
 # Pull the 'scantools' image
 docker pull ghcr.io/microsoft/lamar-benchmark/scantools:latest
