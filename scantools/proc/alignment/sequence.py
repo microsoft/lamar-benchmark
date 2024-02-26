@@ -185,6 +185,7 @@ def compute_reprojection_errors(qt_init, qt_opt, p3d_opt, session_q, matches_2d3
                                 data_bundle, conf: BAConf) -> Tuple[np.ndarray]:
     initial_reprojection_errors = []
     final_reprojection_errors = []
+    num_inliers_per_keyframe = {}
     for ts, rig_id, cam_id, T_cam2rig in tqdm(data_bundle, disable=(logger.level > logging.INFO)):
         matches = matches_2d3d.get((ts, cam_id))
         if matches is None:
@@ -195,6 +196,8 @@ def compute_reprojection_errors(qt_init, qt_opt, p3d_opt, session_q, matches_2d3
         stddev_keypoint = matches['keypoint_noise'] * conf.noise_bundle_multiplier
         camera = session_q.sensors[cam_id]
         T_w2cam = (T_cam2rig or Pose()).inverse() * Pose(*qt_init[ts, rig_id])
+        if (ts, rig_id) not in num_inliers_per_keyframe:
+            num_inliers_per_keyframe[ts, rig_id] = 0
         for p2d, p3d, node_id_ref in zip(p2ds, p3ds, node_ids_ref):
             node_id_ref = tuple(node_id_ref)
             if tracks_ref is not None and node_id_ref in tracks_ref['node_to_root_mapping']:
@@ -214,7 +217,10 @@ def compute_reprojection_errors(qt_init, qt_opt, p3d_opt, session_q, matches_2d3
             if residual is None:
                 continue
             final_reprojection_errors.append(np.linalg.norm(residual)*stddev_keypoint)
-    return np.array(initial_reprojection_errors), np.array(final_reprojection_errors)
+
+            if np.linalg.norm(residual) <= conf.reproj_filter_lambda:
+                num_inliers_per_keyframe[ts, rig_id] += 1
+    return np.array(initial_reprojection_errors), np.array(final_reprojection_errors), np.array(list(num_inliers_per_keyframe.items()))
 
 
 def print_reprojection_stats(prefix, reproj_errors, std):
@@ -402,8 +408,9 @@ def optimize_sequence_bundle(poses_tracking, poses_init, session_q,
         stats['tracking_pre'] = print_tracking_stats('Pre-BA', poses_tracking, poses_init)
         stats['tracking_post'] = print_tracking_stats('Post-BA', poses_tracking, poses_opt)
         logger.info('Computing reprojection statistics.')
-        initial_reprojection_errors, final_reprojection_errors = compute_reprojection_errors(
+        initial_reprojection_errors, final_reprojection_errors, num_inliers_per_keyframe = compute_reprojection_errors(
             qt_init, qt_opt, p3d_opt, session_q, matches_2d3d, tracks_ref, data_bundle, conf)
+        stats['num_inliers_per_keyframe'] = num_inliers_per_keyframe
         if initial_reprojection_errors.shape[0] > 0:
             stats['reproj_pre'] = print_reprojection_stats(
                 'Pre-BA', initial_reprojection_errors, np.mean(avg_noise_bundle))
