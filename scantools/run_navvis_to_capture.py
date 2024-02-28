@@ -7,15 +7,15 @@ from tqdm import tqdm
 import cv2
 import numpy as np
 
-from . import logger
-from .scanners import NavVis
-from .scanners.navvis.camera_tiles import TileFormat
-from .capture import (
+from scantools import logger
+from scantools.scanners import NavVis
+from scantools.scanners.navvis.camera_tiles import TileFormat
+from scantools.capture import (
         Capture, Session, Sensors, create_sensor, Trajectories, Rigs, Pose,
         RecordsCamera, RecordsLidar, RecordBluetooth, RecordBluetoothSignal,
         RecordsBluetooth, RecordWifi, RecordWifiSignal, RecordsWifi)
-from .utils.misc import add_bool_arg
-from .utils.io import read_image, write_image
+from scantools.utils.misc import add_bool_arg
+from scantools.utils.io import read_image, write_image
 
 TILE_CHOICES = sorted([attr.name.split('_')[1] for attr in TileFormat])
 
@@ -58,7 +58,7 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
 
     if session_id is None:
         session_id = input_path.name
-    assert session_id not in capture.sessions
+    # assert session_id not in capture.sessions
 
     output_path = capture.data_path(session_id)
     nv = NavVis(input_path, output_path, tiles_format, upright)
@@ -84,7 +84,7 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
         cy = cy / h * new_h
         camera_params = ('PINHOLE', new_w, new_h, fx, fy, cx, cy)
 
-    device = nv.get_device()
+    odom = nv.get_device()
 
     sensors = Sensors()
     trajectory = Trajectories()
@@ -104,7 +104,7 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
             sensor_id += f'-{tile_id}' if num_tiles > 1 else ''
             sensor = create_sensor(
                 'camera', sensor_params=camera_params,
-                name=f'NavVis {device} camera-cam{camera_id} tile-{tiles_format} id-{tile_id}')
+                name=f'NavVis {odom} camera-cam{camera_id} tile-{tiles_format} id-{tile_id}')
             sensors[sensor_id] = sensor
 
             if export_as_rig:
@@ -136,16 +136,28 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
 
     if export_trace:
         sensors['trace'] = create_sensor('trace', name='Mapping path')
+
+        # Odometry from trace.csv file.
+        odom = Trajectories()
         for trace in nv.get_trace():
             timestamp_us = int(trace["nsecs"]) // 1_000  # convert from ns to us
             qvec = np.array([trace["ori_w"], trace["ori_x"], trace["ori_y"], trace["ori_z"]], dtype=float)
             tvec = np.array([trace["x"], trace["y"], trace["z"]], dtype=float)
             world_from_device = Pose(r=qvec, t=tvec)
-            if export_as_rig:
-                trajectory[timestamp_us, 'trace'] = rig_from_world * world_from_device
-            else:
-                trajectory[timestamp_us, 'trace'] = world_from_device
+            odom[timestamp_us, 'trace'] = world_from_device
 
+        # Create a list of tuples, each containing a timestamp and the corresponding closest_timestamp
+        differences = [(ts, min(odom.keys(), key=lambda x:abs(x-ts))) for ts in trajectory]
+        # Find the tuple with the smallest difference between ts and closest_timestamp
+        ts, closest_timestamp = min(differences, key=lambda x: abs(x[0]-x[1]))
+        # Find the closest_timestamp for the ts with the smallest difference.
+        closest_timestamp = min(odom.keys(), key=lambda x:abs(x-ts))
+        # Find the correction to apply to the camera trajectory.
+        correction = trajectory[ts, 'navvis_rig'] * odom[closest_timestamp,'trace'].inverse()
+
+        # Save the trace with the correction applied.
+        for timestamp_us in odom:
+            trajectory[timestamp_us, 'trace'] = correction * odom[timestamp_us,'trace']
         # Sort the trajectory by timestamp.
         trajectory = Trajectories(dict(sorted(trajectory.items())))
 
@@ -194,7 +206,7 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
     for ts, cam in tqdm(session.images.key_pairs()):
         downsample = downsample_max_edge is not None
         # Camera 0 is (physically) mounted upside down on VLX.
-        flip = (upright and device == 'VLX' and cam.startswith('cam0'))
+        flip = (upright and odom == 'VLX' and cam.startswith('cam0'))
         if downsample or flip:
             image_path = capture.data_path(session_id) / session.images[ts, cam]
             image = read_image(image_path)
@@ -225,9 +237,9 @@ if __name__ == '__main__':
     args = parser.parse_args().__dict__
 
     capture_path = args.pop('capture_path')
-    if capture_path.exists():
-        args['capture'] = Capture.load(capture_path)
-    else:
-        args['capture'] = Capture(sessions={}, path=capture_path)
+    # if capture_path.exists():
+    #     args['capture'] = Capture.load(capture_path)
+    # else:
+    args['capture'] = Capture(sessions={}, path=capture_path)
 
     run(**args)
