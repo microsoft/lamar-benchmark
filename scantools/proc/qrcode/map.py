@@ -10,8 +10,8 @@ from tqdm import tqdm
 
 from scantools import logger
 from scantools.capture import Capture, Pose
-from scantools.proc.rendering import Renderer, compute_rays
 from scantools.proc.qrcode.detector import QRCodeDetector
+from scantools.proc.rendering import Renderer, compute_rays
 from scantools.utils.io import read_mesh
 
 
@@ -224,6 +224,7 @@ def save_txt(qr_map: list[dict], path: Path):
     - path (str): The file path where the QR map will be saved.
     """
     try:
+        logger.info(f"Saving qr_map to file: {path}")
         with open(path, "w", newline="") as f:
             writer = csv.writer(f)
 

@@ -13,31 +13,33 @@ Here is an example of file structure for a capture at `location1`:
 
 ```
 location1/                                  # a Capture directory
-├── sessions/                               # a collection of Sessions 
+├── sessions/                               # a collection of Sessions
 │   ├── navvis1/                            # NavVis Session #1
-│   │   ├── sensors.txt                     # list of all sensors with specs
-│   │   ├── rigs.txt                        # rigid geometric relationship between sensors
-│   │   ├── trajectories.txt                # pose for each (timestamp, sensor)
+│   │   ├── bt.txt                          # list of bluetooth measurements
+│   │   ├── depths.txt                      # list of (rendered) depth maps, one per image
 │   │   ├── images.txt                      # list of images with their paths
 │   │   ├── pointclouds.txt                 # list of point clouds with their paths
+│   │   ├── rigs.txt                        # rigid geometric relationship between sensors
+│   │   ├── sensors.txt                     # list of all sensors with specs
+│   │   ├── trajectories.txt                # pose for each (timestamp, sensor)
+│   │   ├── wifi.txt                        # list of wifi measurements
 │   │   ├── raw_data/                       # root path of images, point clouds, etc.
 │   │   │   ├── images_undistorted/
+│   │   │   ├── render/                     # root path for the rgb and depth maps renderings
 │   │   │   └── pointcloud.ply
 │   │   └── proc/                           # root path of processed assets
 │   │       ├── meshes/                     # a collections of meshes
-│   │       ├── depth_renderings.txt        # a list of rendered depth maps, one per image
-│   │       ├── depth_renderings/           # root path for the depth maps
 │   │       ├── alignment_global.txt        # global transforms between sessions
 │   │       ├── alignment_trajectories.txt  # transform of each pose to a global reference
 │   │       └── overlaps.h5                 # overlap matrix from this session to others
 │   ├── hololens1/
-│   │   ├── sensors.txt
-│   │   ├── rigs.txt
-│   │   ├── trajectories.txt
-│   │   ├── images.txt
+│   │   ├── bt.txt
 │   │   ├── depths.txt                      # list of depth maps with their paths
-│   │   ├── bluetooth.txt                   # list of bluetooth measurements
-│   │   ├── wifi.txt                        # list of wifi measurements
+│   │   ├── images.txt
+│   │   ├── rigs.txt
+│   │   ├── sensors.txt
+│   │   ├── trajectories.txt
+│   │   ├── wifi.txt
 │   │   ├── raw_data/
 │   │   │   ├── images/
 │   │   │   └── depths/
@@ -84,8 +86,8 @@ A Python interface that mirrors this file structure is available in `scantools.c
 - `proc/depth_renderings.txt` is a list of depth maps and their relative paths in `proc/depth_renderings/`
 - `proc/alignment_global.txt` is a list of global transforms w.r.t. other sessions with additional info (e.g. error statistics)
 - `proc/alignment_trajectories.txt` is a list of transforms w.r.t an absolute reference, following the format of `trajectories.txt`
-- `qrcodes/qr_map.txt` contains all detected QR codes.
-  `qrcodes/qr_map_filtered_by_area.txt` is a list of QR codes filtered by area.
+- `proc/qrcodes/qr_map.txt` contains all detected QR codes.
+  `proc/qrcodes/qr_map_filtered_by_area.txt` is a list of QR codes filtered by area.
   If there are multiple measurements for one QR code, we select the one with
   largest area in the image.
 

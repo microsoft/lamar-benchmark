@@ -44,7 +44,7 @@ def run(
     else:
         capture = Capture(sessions={}, path=capture_path)
 
-        logger.info("Convert NavVis data to CAPTURE format: ", navvis_path)
+        logger.info("Convert NavVis data to CAPTURE format: %s", navvis_path)
         # Typically, QR codes are captured intentionally by approaching them
         # closely. As a result, we don't need tiling, which could potentially
         # split the QR code across multiple tiles.
