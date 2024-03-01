@@ -64,7 +64,7 @@ else:
         mask = (depth > np.iinfo(dtype).max) | (depth < 0)
         depth[mask] = 0  # avoid overflow
         im = PIL.Image.fromarray(depth.round().astype(dtype))
-        im.save(path)
+        im.save(path, format='PNG', compress_level=9)
 
 
 try:
