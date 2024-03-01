@@ -66,6 +66,23 @@ else:
         im = PIL.Image.fromarray(depth.round().astype(dtype))
         im.save(path, format='PNG', compress_level=9)
 
+    def convert_dng_to_jpg(dng_path: Path):
+        try:
+            import rawpy  # pylint: disable=import-outside-toplevel
+        except ImportError:
+            raise ImportError("rawpy not installed. Please run: pip install rawpy")
+
+        if not dng_path.exists():
+            raise FileNotFoundError(f'Input DNG file does not exist: {dng_path}')
+        with rawpy.imread(str(dng_path)) as raw:
+            rgb = raw.postprocess(
+                use_camera_wb=True,
+                output_color=rawpy.ColorSpace.sRGB,
+                no_auto_bright=True,
+                user_flip=0,  # Ignore any flip information; 0 means no flip
+            )
+            image = PIL.Image.fromarray(rgb)
+            image.save(str(dng_path.with_suffix(".jpg")), format='JPEG', quality=100)
 
 try:
     import cv2
