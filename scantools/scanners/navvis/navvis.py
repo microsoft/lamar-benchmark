@@ -3,7 +3,7 @@ import logging
 import multiprocessing
 from pathlib import Path, PurePath
 from typing import Optional
-
+from tqdm.contrib.concurrent import process_map
 from bs4 import BeautifulSoup
 import numpy as np
 
@@ -12,7 +12,7 @@ from .ibeacon_parser import parse_navvis_ibeacon_packet, BluetoothMeasurement
 from .iwconfig_parser import parse_iwconfig, WifiMeasurement
 from . import ocamlib
 from ...utils import transform
-from ...utils.io import read_csv
+from ...utils.io import read_csv, convert_dng_to_jpg
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +116,25 @@ class NavVis:
         """
         # get valid frame_ids parsing image folder
         valid_ids = sorted(self._input_image_path.glob("*-cam0.jpg"))
+
+        # If no jpg images were found, try converting dng images to jpg.
+        # This occurs when you don't have access to the datasets_proc/ folder,
+        # but only to the .nvd (from Navvis cloud) + datasets_rec/ folder.
+        if len(valid_ids) == 0:
+            dng_images = sorted(self._input_image_path.glob(f"*.dng"))
+            process_map(
+                convert_dng_to_jpg,
+                list(dng_images),
+                max_workers=self.get_processes(),
+                chunksize=1,
+                desc="Converting DNG to JPG",
+            )
+            valid_ids = sorted(self._input_image_path.glob(f"*-cam0.jpg"))
+
+        # Verify if jpg images were found.
+        if len(valid_ids) == 0:
+            raise FileNotFoundError(f'No valid images found in {self._input_image_path}.')
+
         for file_path in valid_ids:
             frame_id = int(file_path.name.split('-')[0])
 
@@ -184,7 +203,7 @@ class NavVis:
 
     def get_output_path(self):
         return self._output_path
-    
+
     def get_device(self):
         return self.__device
 
@@ -394,6 +413,8 @@ class NavVis:
         # pool of workers
         num_processes = self.get_processes()
         logger.debug("Number of processes used: %d", num_processes)
+
+        logger.info("Starting with LUT creation...")
         pool = multiprocessing.Pool(processes=num_processes)
 
         for cam_id in self.get_camera_ids():
@@ -420,6 +441,7 @@ class NavVis:
 
         pool.close()
         pool.join()
+        logger.info("Done with LUT creation.")
 
     def undistort(self):
         # paths

@@ -79,6 +79,7 @@ RUN python3 -m pip install --no-deps \
         plyfile==1.0.3 \
         pytijo==0.0.2 \
         pyzbar-upright==0.1.8 \
+        rawpy==0.19.1 \
         scipy==1.11.4
 RUN cd lamar && python3 -m pip install -e .[scantools] --no-deps
 WORKDIR /lamar
