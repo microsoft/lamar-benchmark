@@ -69,8 +69,8 @@ T_w_i = sessions.trajectories[keys[0]]  # first pose, from sensor/rig to world
 :one: Install the core dependencies:
 
 - Python >= 3.9
-- [hloc](https://github.com/cvg/Hierarchical-Localization) and its dependencies, including [COLMAP](https://colmap.github.io/install.html) built from source.
-- [pyceres][https://github.com/cvg/pyceres.git] built from source.
+- [hloc](https://github.com/cvg/Hierarchical-Localization) and its dependencies, including [COLMAP 3.8](https://colmap.github.io/install.html) built from source.
+- [pyceres](https://github.com/cvg/pyceres) built from source at tag v1.0.
 
 :two: Install the LaMAR libraries and pull the remaining pip dependencies:
 ```bash
