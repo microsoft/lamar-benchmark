@@ -214,7 +214,7 @@ class RigPoseEstimation(PoseEstimation):
                 query_names, cameras, T_cams2rig,
                 ref_key_names,
                 self.recover_matches_2d3d,
-                self.config['pnp_error_multiplier'],
+                self.config,
                 return_covariance=self.return_covariance
             )
             if pose is not None:
