@@ -1,6 +1,5 @@
 from pathlib import Path
 from typing import List, Tuple, Callable
-from collections import defaultdict
 import numpy as np
 
 import pycolmap
@@ -14,8 +13,6 @@ KeyType = Tuple[int, str]
 def recover_matches_2d3d(query: str, ref_key_names: List[Tuple[KeyType, str]],
                          mapping, query_features: Path, match_file: Path):
     (p2d,), (noise,) = get_keypoints(query_features, [query])
-    p2d_to_p3d = defaultdict(list)
-    num_matches = 0
 
     if len(ref_key_names) == 0:
         ref_keys = ref_names = []
@@ -29,32 +26,30 @@ def recover_matches_2d3d(query: str, ref_key_names: List[Tuple[KeyType, str]],
         'indices': [np.empty((0,), int)],
         'node_ids_ref': [np.empty((0, 2), object)]
     }
+    p2d_to_p3d = set()
     for idx, (ref_key, matches) in enumerate(zip(ref_keys, all_matches)):
         if len(matches) == 0:
             continue
         valid, p3ds, p3d_ids = mapping.get_points3D(ref_key, matches[:, 1])
         matches = matches[valid]
-        num_matches += len(matches)
 
-        p2d_q = []
-        p3d = []
-        indices = []
+        p2d_ids = []
+        match_indices = []
         node_ids_ref = []
-        for (i, j), p3d_id, xyz in zip(matches, p3d_ids, p3ds):
-            # avoid duplicate observations
-            if p3d_id != -1 and p3d_id in p2d_to_p3d[i]:
+        for match_idx, ((i, j), p3d_id) in enumerate(zip(matches, p3d_ids)):
+            if p3d_id != -1 and (i, p3d_id) in p2d_to_p3d:
+                # Avoid duplicate observations.
                 continue
-            p2d_to_p3d[i].append(p3d_id)
-            p2d_q.append(p2d[i])
-            p3d.append(xyz)
-            indices.append(idx)
+            p2d_to_p3d.add((i, p3d_id))
+            p2d_ids.append(i)
+            match_indices.append(match_idx)
             node_ids_ref.append((ref_key, j))
-        if len(p2d_q) == 0:
+        if len(p2d_ids) == 0:
             continue
 
-        ret['kp_q'].append(np.array(p2d_q))
-        ret['p3d'].append(np.array(p3d))
-        ret['indices'].append(np.array(indices))
+        ret['kp_q'].append(p2d[p2d_ids])
+        ret['p3d'].append(p3ds[match_indices])
+        ret['indices'].append(np.full(len(match_indices), idx))
         ret['node_ids_ref'].append(np.array(node_ids_ref, dtype=object))
     ret = {k: np.concatenate(v, 0) for k, v in ret.items()}
 
