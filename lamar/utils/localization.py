@@ -1,8 +1,12 @@
 from pathlib import Path
-from typing import List, Tuple, Callable
+from typing import Any, Dict, List, Tuple, Callable
 import numpy as np
 
 import pycolmap
+try:
+    import poselib
+except ImportError:
+    poselib = None
 
 from scantools.capture import Camera, Pose, Trajectories
 from scantools.proc.alignment.image_matching import get_keypoints, get_matches
@@ -59,26 +63,39 @@ def recover_matches_2d3d(query: str, ref_key_names: List[Tuple[KeyType, str]],
 def estimate_camera_pose(query: str, camera: Camera,
                          ref_key_names: List[Tuple[KeyType, str]],
                          recover_matches: Callable,
-                         pnp_error_multiplier: float,
-                         return_covariance: bool) -> Pose:
+                         config: Dict[str, Any],
+                         return_covariance: bool) -> Tuple[Pose, Dict[str, Any]]:
     matches_2d3d = recover_matches(query, ref_key_names)
     keypoint_noise = matches_2d3d['keypoint_noise']
+    points_2d = matches_2d3d['kp_q']
+    points_3d = matches_2d3d['p3d']
+    inlier_threshold = config['pnp_error_multiplier'] * keypoint_noise
 
-    ret = pycolmap.absolute_pose_estimation(
-        matches_2d3d['kp_q'], matches_2d3d['p3d'],
-        camera.asdict, pnp_error_multiplier * keypoint_noise,
-        return_covariance=return_covariance)
-
-    if ret['success']:
-        if return_covariance:
-            ret['covariance'] *= keypoint_noise ** 2
-            # the covariance returned by pycolmap is on the left side,
-            # which is the right side of the inverse.
-            pose = Pose(*Pose(ret['qvec'], ret['tvec']).inv.qt, ret['covariance'])
+    if config['estimator'] == 'pycolmap':
+        ret = pycolmap.absolute_pose_estimation(
+            points_2d, points_3d, camera.asdict, inlier_threshold,
+            return_covariance=return_covariance)
+        if ret['success']:
+            if return_covariance:
+                ret['covariance'] *= keypoint_noise ** 2
+                # the covariance returned by pycolmap is on the left side,
+                # which is the right side of the inverse.
+                pose = Pose(*Pose(ret['qvec'], ret['tvec']).inv.qt, ret['covariance'])
+            else:
+                pose = Pose(ret['qvec'], ret['tvec']).inv
         else:
-            pose = Pose(ret['qvec'], ret['tvec']).inv
+            pose = None
+    elif config['estimator'] == 'poselib':
+        if poselib is None:
+            raise ImportError('Could not import PoseLib - did you forget to install it?')
+        if return_covariance:
+            raise ValueError('PoseLib does not support return_covariance=True')
+        pose, ret = poselib.estimate_absolute_pose(
+            points_2d, points_3d, camera.asdict,
+            {'max_reproj_error': inlier_threshold}, {})
+        pose = Pose(pose.q, pose.t).inv
     else:
-        pose = None
+        raise NotImplementedError(f'Unknown estimator: {config["estimator"]}')
 
     ret = {**ret, 'matches_2d3d_list': [matches_2d3d]}
     return pose, ret

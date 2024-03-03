@@ -33,6 +33,7 @@ class PoseEstimationPaths:
             root / 'pose_estimation' / query_id / ref_id
             / config['features']['name'] / config['matches']['name']
             / config['pairs']['name'] / config['mapping']['name'] / config['name']
+            / config['estimator']
         )
         self.poses = self.workdir / 'poses.txt'
         self.config = self.workdir / 'configuration.json'
@@ -145,6 +146,7 @@ class PoseEstimation:
 class SingleImagePoseEstimation(PoseEstimation):
     method = {
         'name': 'single_image',
+        'estimator': 'pycolmap',
         'pnp_error_multiplier': 3.0,
     }
 
@@ -167,7 +169,7 @@ class SingleImagePoseEstimation(PoseEstimation):
                 camera,
                 ref_key_names,
                 self.recover_matches_2d3d,
-                self.config['pnp_error_multiplier'],
+                self.config,
                 return_covariance=self.return_covariance
             )
             if pose is not None:
@@ -185,6 +187,7 @@ class SingleImagePoseEstimation(PoseEstimation):
 class RigPoseEstimation(PoseEstimation):
     method = {
         'name': 'rig',
+        'estimator': 'pycolmap',
         'pnp_error_multiplier': 1.0
     }
 
@@ -229,6 +232,7 @@ class RigPoseEstimation(PoseEstimation):
 class RigSinglePoseEstimation(SingleImagePoseEstimation):
     method = {
         'name': 'rig_single',
+        'estimator': 'pycolmap',
         'pnp_error_multiplier': 1.0
     }
 
@@ -303,11 +307,13 @@ class DensePoseEstimation(PoseEstimation):
 class SingleImageDensePoseEstimation(DensePoseEstimation, SingleImagePoseEstimation):
     method = {
         'name': 'dense_single_image',
+        'estimator': 'pycolmap',
         'pnp_error_multiplier': 3.0,
     }
 
 class RigDensePoseEstimation(DensePoseEstimation, RigPoseEstimation):
     method = {
         'name': 'dense_rig',
+        'estimator': 'pycolmap',
         'pnp_error_multiplier': 1.0,
     }
