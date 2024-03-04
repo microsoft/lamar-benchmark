@@ -136,28 +136,21 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
 
     if export_trace:
         sensors['trace'] = create_sensor('trace', name='Mapping path')
-
-        # Odometry from trace.csv file.
-        odom = Trajectories()
         for trace in nv.get_trace():
             timestamp_us = int(trace["nsecs"]) // 1_000  # convert from ns to us
             qvec = np.array([trace["ori_w"], trace["ori_x"], trace["ori_y"], trace["ori_z"]], dtype=float)
             tvec = np.array([trace["x"], trace["y"], trace["z"]], dtype=float)
-            world_from_device = Pose(r=qvec, t=tvec)
-            odom[timestamp_us, 'trace'] = world_from_device
+            trace_in_imu = Pose(r=qvec, t=tvec)
 
-        # Create a list of tuples, each containing a timestamp and the corresponding closest_timestamp
-        differences = [(ts, min(odom.keys(), key=lambda x:abs(x-ts))) for ts in trajectory]
-        # Find the tuple with the smallest difference between ts and closest_timestamp
-        ts, closest_timestamp = min(differences, key=lambda x: abs(x[0]-x[1]))
-        # Find the closest_timestamp for the ts with the smallest difference.
-        closest_timestamp = min(odom.keys(), key=lambda x:abs(x-ts))
-        # Find the correction to apply to the camera trajectory.
-        correction = trajectory[ts, 'navvis_rig'] * odom[closest_timestamp,'trace'].inverse()
+            qvec, tvec = nv._imu["orientation"], nv._imu["position"]
+            imu_from_rig = Pose(r=qvec, t=tvec)
 
-        # Save the trace with the correction applied.
-        for timestamp_us in odom:
-            trajectory[timestamp_us, 'trace'] = correction * odom[timestamp_us,'trace']
+            cam0_info = nv.get_cameras()["cam0"]
+            qvec, tvec = cam0_info["orientation"], cam0_info["position"]
+            cam0_from_rig = Pose(r=qvec, t=tvec)
+
+            trajectory[timestamp_us, 'trace'] = cam0_from_rig * imu_from_rig.inverse() * trace_in_imu
+
         # Sort the trajectory by timestamp.
         trajectory = Trajectories(dict(sorted(trajectory.items())))
 

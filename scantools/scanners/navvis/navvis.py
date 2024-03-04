@@ -28,6 +28,7 @@ class NavVis:
         self._camera_file_path = None
         self._pointcloud_file_path = None
         self._trace_path = None
+        self._imu = None
 
         self._output_path = None
         self._output_image_path = None
@@ -154,37 +155,61 @@ class NavVis:
             camera_models = xml.find_all("cameramodel")
             for cam in camera_models:
                 # current camera dict
-                ocam_model = {}
+                cam_info = {}
 
                 # cam2world
                 coeff = cam.cam2world.find_all("coeff")
-                ocam_model['pol'] = [float(d.string) for d in coeff]
-                ocam_model['length_pol'] = len(coeff)
+                cam_info['pol'] = [float(d.string) for d in coeff]
+                cam_info['length_pol'] = len(coeff)
 
                 # world2cam
                 coeff = cam.world2cam.find_all("coeff")
-                ocam_model['invpol'] = [float(d.string) for d in coeff]
-                ocam_model['length_invpol'] = len(coeff)
+                cam_info['invpol'] = [float(d.string) for d in coeff]
+                cam_info['length_invpol'] = len(coeff)
 
-                ocam_model['xc'] = float(cam.cx.string)
-                ocam_model['yc'] = float(cam.cy.string)
-                ocam_model['c'] = float(cam.c.string)
-                ocam_model['d'] = float(cam.d.string)
-                ocam_model['e'] = float(cam.e.string)
-                ocam_model['height'] = int(cam.height.string)
-                ocam_model['width'] = int(cam.width.string)
+                cam_info['xc'] = float(cam.cx.string)
+                cam_info['yc'] = float(cam.cy.string)
+                cam_info['c'] = float(cam.c.string)
+                cam_info['d'] = float(cam.d.string)
+                cam_info['e'] = float(cam.e.string)
+                cam_info['height'] = int(cam.height.string)
+                cam_info['width'] = int(cam.width.string)
                 if self.__upright:
                     # only switch height and width to update undistortion sizes
                     # rest stays the same since we pre-rotate the target coordinates
-                    ocam_model['height'], ocam_model['width'] = (
-                        ocam_model['width'], ocam_model['height'])
-                ocam_model['upright'] = self.__upright
+                    cam_info['height'], cam_info['width'] = (
+                        cam_info['width'], cam_info['height'])
+                cam_info['upright'] = self.__upright
 
-                sensorname = cam.sensorname.string
-                cameras[sensorname] = ocam_model
+                # Rig information from sensor_frame.xml.
+                cam_info['position'] = np.array([
+                    cam.pose.position.x.string,
+                    cam.pose.position.y.string,
+                    cam.pose.position.z.string], dtype=float)
+                cam_info['orientation'] = np.array([
+                    cam.pose.orientation.w.string,
+                    cam.pose.orientation.x.string,
+                    cam.pose.orientation.y.string,
+                    cam.pose.orientation.z.string], dtype=float)
+
+                cameras[cam.sensorname.string] = cam_info
 
         # save metadata inside the class
         self.__cameras = cameras
+
+        # ToDo: find a better place. This is not a camera model
+        # IMU information from sensor_frame.xml.
+        imu = {}
+        imu['position'] = np.array([
+            xml.imu.pose.position.x.string,
+            xml.imu.pose.position.y.string,
+            xml.imu.pose.position.z.string], dtype=float)
+        imu['orientation'] = np.array([
+            xml.imu.pose.orientation.w.string,
+            xml.imu.pose.orientation.x.string,
+            xml.imu.pose.orientation.y.string,
+            xml.imu.pose.orientation.z.string], dtype=float)
+        self._imu = imu
 
     def load_trace(self):
         expected_columns = [
@@ -220,7 +245,7 @@ class NavVis:
 
     def get_output_path(self):
         return self._output_path
-    
+
     def get_device(self):
         return self.__device
 
@@ -292,6 +317,12 @@ class NavVis:
         qvec = np.array(data["quaternion"])
         tvec = np.array(data["position"])
 
+        return qvec, tvec
+
+    def get_camhead(self, frame_id):
+        data = self.__frames[frame_id]["cam_head"]
+        qvec = np.array(data["quaternion"])
+        tvec = np.array(data["position"])
         return qvec, tvec
 
     # auxiliary function:
