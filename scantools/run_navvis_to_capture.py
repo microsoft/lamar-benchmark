@@ -7,15 +7,15 @@ from tqdm import tqdm
 import cv2
 import numpy as np
 
-from scantools import logger
-from scantools.scanners import NavVis
-from scantools.scanners.navvis.camera_tiles import TileFormat
-from scantools.capture import (
+from . import logger
+from .scanners import NavVis
+from .scanners.navvis.camera_tiles import TileFormat
+from .capture import (
         Capture, Session, Sensors, create_sensor, Trajectories, Rigs, Pose,
         RecordsCamera, RecordsLidar, RecordBluetooth, RecordBluetoothSignal,
         RecordsBluetooth, RecordWifi, RecordWifiSignal, RecordsWifi)
-from scantools.utils.misc import add_bool_arg
-from scantools.utils.io import read_image, write_image
+from .utils.misc import add_bool_arg
+from .utils.io import read_image, write_image
 
 TILE_CHOICES = sorted([attr.name.split('_')[1] for attr in TileFormat])
 
@@ -136,20 +136,22 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
 
     if export_trace:
         sensors['trace'] = create_sensor('trace', name='Mapping path')
+
+        qvec, tvec = nv._imu["orientation"], nv._imu["position"]
+        imu_from_camhead = Pose(r=qvec, t=tvec)
+
+        cam0 = nv.get_cameras()["cam0"]
+        qvec, tvec = cam0["orientation"], cam0["position"]
+        cam0_from_camhead = Pose(r=qvec, t=tvec)
+
         for trace in nv.get_trace():
             timestamp_us = int(trace["nsecs"]) // 1_000  # convert from ns to us
             qvec = np.array([trace["ori_w"], trace["ori_x"], trace["ori_y"], trace["ori_z"]], dtype=float)
             tvec = np.array([trace["x"], trace["y"], trace["z"]], dtype=float)
             trace_in_imu = Pose(r=qvec, t=tvec)
 
-            qvec, tvec = nv._imu["orientation"], nv._imu["position"]
-            imu_from_rig = Pose(r=qvec, t=tvec)
-
-            cam0_info = nv.get_cameras()["cam0"]
-            qvec, tvec = cam0_info["orientation"], cam0_info["position"]
-            cam0_from_rig = Pose(r=qvec, t=tvec)
-
-            trajectory[timestamp_us, 'trace'] = cam0_from_rig * imu_from_rig.inverse() * trace_in_imu
+            trace_in_cam0 = cam0_from_camhead * imu_from_camhead.inverse() * trace_in_imu
+            trajectory[timestamp_us, 'trace'] = trace_in_cam0
 
         # Sort the trajectory by timestamp.
         trajectory = Trajectories(dict(sorted(trajectory.items())))
