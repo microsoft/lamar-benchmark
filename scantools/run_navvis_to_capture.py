@@ -138,20 +138,23 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
         sensors['trace'] = create_sensor('trace', name='Mapping path')
 
         qvec, tvec = nv._imu["orientation"], nv._imu["position"]
-        imu_from_camhead = Pose(r=qvec, t=tvec)
+        camhead_from_imu = Pose(r=qvec, t=tvec)
+        imu_from_camhead = camhead_from_imu.inverse()
 
+        # Rig is in cam0 frame.
         cam0 = nv.get_cameras()["cam0"]
         qvec, tvec = cam0["orientation"], cam0["position"]
-        cam0_from_camhead = Pose(r=qvec, t=tvec)
+        camhead_from_rig = Pose(r=qvec, t=tvec)
 
         for trace in nv.get_trace():
             timestamp_us = int(trace["nsecs"]) // 1_000  # convert from ns to us
+
+            # world_from_imu (trace.csv contains the IMU's poses)
             qvec = np.array([trace["ori_w"], trace["ori_x"], trace["ori_y"], trace["ori_z"]], dtype=float)
             tvec = np.array([trace["x"], trace["y"], trace["z"]], dtype=float)
-            trace_in_imu = Pose(r=qvec, t=tvec)
+            world_from_imu = Pose(r=qvec, t=tvec)
 
-            trace_in_cam0 = cam0_from_camhead * imu_from_camhead.inverse() * trace_in_imu
-            trajectory[timestamp_us, 'trace'] = trace_in_cam0
+            trajectory[timestamp_us, 'trace'] = world_from_imu * imu_from_camhead * camhead_from_rig
 
         # Sort the trajectory by timestamp.
         trajectory = Trajectories(dict(sorted(trajectory.items())))
