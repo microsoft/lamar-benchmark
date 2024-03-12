@@ -235,9 +235,9 @@ if __name__ == '__main__':
     args = parser.parse_args().__dict__
 
     capture_path = args.pop('capture_path')
-    # if capture_path.exists():
-    #     args['capture'] = Capture.load(capture_path)
-    # else:
-    args['capture'] = Capture(sessions={}, path=capture_path)
+    if capture_path.exists():
+        args['capture'] = Capture.load(capture_path)
+    else:
+        args['capture'] = Capture(sessions={}, path=capture_path)
 
     run(**args)

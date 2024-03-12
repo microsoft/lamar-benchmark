@@ -197,7 +197,6 @@ class NavVis:
         # save metadata inside the class
         self.__cameras = cameras
 
-        # ToDo: find a better place. This is not a camera model
         # IMU information from sensor_frame.xml.
         imu = {}
         imu['position'] = np.array([
@@ -654,7 +653,6 @@ class NavVis:
                     wifi_measurements.append(wifi_measurement)
 
         return wifi_measurements
-
 
 #
 # auxiliary function for parallel computing
