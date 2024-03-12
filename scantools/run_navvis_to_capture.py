@@ -58,7 +58,6 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
 
     if session_id is None:
         session_id = input_path.name
-    # assert session_id not in capture.sessions
 
     output_path = capture.data_path(session_id)
     nv = NavVis(input_path, output_path, tiles_format, upright)
@@ -84,7 +83,7 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
         cy = cy / h * new_h
         camera_params = ('PINHOLE', new_w, new_h, fx, fy, cx, cy)
 
-    odom = nv.get_device()
+    device = nv.get_device()
 
     sensors = Sensors()
     trajectory = Trajectories()
@@ -104,7 +103,7 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
             sensor_id += f'-{tile_id}' if num_tiles > 1 else ''
             sensor = create_sensor(
                 'camera', sensor_params=camera_params,
-                name=f'NavVis {odom} camera-cam{camera_id} tile-{tiles_format} id-{tile_id}')
+                name=f'NavVis {device} camera-cam{camera_id} tile-{tiles_format} id-{tile_id}')
             sensors[sensor_id] = sensor
 
             if export_as_rig:
@@ -204,7 +203,7 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
     for ts, cam in tqdm(session.images.key_pairs()):
         downsample = downsample_max_edge is not None
         # Camera 0 is (physically) mounted upside down on VLX.
-        flip = (upright and odom == 'VLX' and cam.startswith('cam0'))
+        flip = (upright and device == 'VLX' and cam.startswith('cam0'))
         if downsample or flip:
             image_path = capture.data_path(session_id) / session.images[ts, cam]
             image = read_image(image_path)
