@@ -59,6 +59,10 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
     if session_id is None:
         session_id = input_path.name
 
+    # trace.csv is correctly exported only if export_as_rig is True.
+    if export_trace:
+        export_as_rig = True
+
     output_path = capture.data_path(session_id)
     nv = NavVis(input_path, output_path, tiles_format, upright)
 
@@ -133,7 +137,7 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
                     pose = get_pose(nv, upright, frame_id, camera_id, tile_id)
                     trajectory[timestamp_us, sensor_id] = pose
 
-    if export_trace and export_as_rig:
+    if export_trace:
         # Add "trace" to the rig with identity pose.
         rigs[rig_id, "trace"] = Pose()
 
