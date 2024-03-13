@@ -122,6 +122,10 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
             pose = get_pose(nv, upright, frame_id, cam_id=0)
             trajectory[timestamp_us, rig_id] = pose
 
+            # qvec, tvec = nv.get_camhead(frame_id)
+            # world_from_camhead = Pose(r=qvec, t=tvec)
+            # trajectory[timestamp_us, "camhead"] = world_from_camhead
+
         for camera_id in camera_ids:
             for tile_id in range(num_tiles):
                 sensor_id = f'cam{camera_id}_{tiles_format}'
@@ -133,7 +137,11 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
                     pose = get_pose(nv, upright, frame_id, camera_id, tile_id)
                     trajectory[timestamp_us, sensor_id] = pose
 
-    if export_trace:
+    if export_trace and export_as_rig:
+        # Add "trace" to the rig with identity pose.
+        rigs[rig_id, "trace"] = Pose()
+
+        # Add "trace" as a sensors.
         sensors['trace'] = create_sensor('trace', name='Mapping path')
 
         qvec, tvec = nv._imu["orientation"], nv._imu["position"]
@@ -153,7 +161,17 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
             tvec = np.array([trace["x"], trace["y"], trace["z"]], dtype=float)
             world_from_imu = Pose(r=qvec, t=tvec)
 
-            trajectory[timestamp_us, 'trace'] = world_from_imu * imu_from_camhead * camhead_from_rig
+            # Apply the transformation to the first tile's pose.
+            # The rig is located in cam_id=0, tile_id=0.
+            tile0_pose = Pose(r=nv.get_tile_rotation(0), t=np.zeros(3)).inverse()
+
+            trace_pose = world_from_imu * imu_from_camhead * camhead_from_rig * tile0_pose
+
+            # # Fix upright VLX extrinsics.
+            # if upright and nv.get_device() == 'VLX':
+            #     trace_pose = fix_vlx_extrinsics(trace_pose)
+
+            trajectory[timestamp_us, 'trace'] = trace_pose
 
         # Sort the trajectory by timestamp.
         trajectory = Trajectories(dict(sorted(trajectory.items())))

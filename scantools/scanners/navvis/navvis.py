@@ -344,14 +344,7 @@ class NavVis:
 
         return qvec
 
-    # get pose of a particular frame and camera id
-    #
-    # Example:
-    #   frame_id = 1
-    #   get_pose(frame_id, "cam1")
-    #   get_pose(frame_id, 1)
-    #
-    def get_pose(self, frame_id, cam_id, tile_id=0):
+    def get_tile_rotation(self, tile_id):
         tiles = self.get_tiles()
         angles = tiles.angles[tile_id]
 
@@ -372,12 +365,21 @@ class NavVis:
         #
         R_tile = Ry @ Rx @ Rz   # even though it looks like a bug it is correct!
 
-        # get Rotation from tile angles
+        return R_tile
 
+
+    # get pose of a particular frame and camera id
+    #
+    # Example:
+    #   frame_id = 1
+    #   get_pose(frame_id, "cam1")
+    #   get_pose(frame_id, 1)
+    #
+    def get_pose(self, frame_id, cam_id, tile_id=0):
+        # get tile rotation
+        R_tile = self.get_tile_rotation(tile_id)
         T_rot_only = transform.create_transform_4x4(
             R_tile, np.array([0, 0, 0]))
-
-        # inverse of tile rotations
         T_rot_only_inv = np.linalg.inv(T_rot_only)
 
         # extrinsics: [R t]
