@@ -122,10 +122,6 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
             pose = get_pose(nv, upright, frame_id, cam_id=0)
             trajectory[timestamp_us, rig_id] = pose
 
-            # qvec, tvec = nv.get_camhead(frame_id)
-            # world_from_camhead = Pose(r=qvec, t=tvec)
-            # trajectory[timestamp_us, "camhead"] = world_from_camhead
-
         for camera_id in camera_ids:
             for tile_id in range(num_tiles):
                 sensor_id = f'cam{camera_id}_{tiles_format}'
