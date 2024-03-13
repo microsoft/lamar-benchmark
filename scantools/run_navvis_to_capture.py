@@ -167,9 +167,19 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
 
             trace_pose = world_from_imu * imu_from_camhead * camhead_from_rig * tile0_pose
 
-            # # Fix upright VLX extrinsics.
-            # if upright and nv.get_device() == 'VLX':
-            #     trace_pose = fix_vlx_extrinsics(trace_pose)
+            if upright:
+                # Images are rotated by 90 degrees clockwise.
+                # Rotate coordinates counter-clockwise: sin(-pi/2) = -1, cos(-pi/2) = 0
+                R_fix = np.array([
+                    [0, 1, 0],
+                    [-1, 0, 0],
+                    [0, 0, 1]
+                ])
+                R = trace_pose.R @ R_fix
+                trace_pose = Pose(r=R, t=pose.t)
+                # Additionally, cam0 is (physically) mounted upside down on VLX.
+                if nv.get_device() == 'VLX':
+                    trace_pose = fix_vlx_extrinsics(trace_pose)
 
             trajectory[timestamp_us, 'trace'] = trace_pose
 
