@@ -137,7 +137,7 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
         # Add "trace" to the rig with identity pose.
         rigs[rig_id, "trace"] = Pose()
 
-        # Add "trace" as a sensors.
+        # Add "trace" as a sensor.
         sensors['trace'] = create_sensor('trace', name='Mapping path')
 
         qvec, tvec = nv._imu["orientation"], nv._imu["position"]
