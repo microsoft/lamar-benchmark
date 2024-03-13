@@ -52,9 +52,8 @@ class Session:
         if self.rigs is not None:
             assert len(self.sensors.keys() & self.rigs.keys()) == 0
             all_devices |= self.rigs.keys()
-        # Now "trace" can be a device_id, so this assertion is not valid anymore
-        # if self.trajectories is not None:
-        #     assert len(self.trajectories.device_ids - all_devices) == 0
+        if self.trajectories is not None:
+            assert len(self.trajectories.device_ids - all_devices) == 0
 
     @property
     def cameras(self) -> Dict[str, Camera]:
