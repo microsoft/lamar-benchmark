@@ -176,7 +176,7 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
                     [0, 0, 1]
                 ])
                 R = trace_pose.R @ R_fix
-                trace_pose = Pose(r=R, t=pose.t)
+                trace_pose = Pose(r=R, t=trace_pose.t)
                 # Additionally, cam0 is (physically) mounted upside down on VLX.
                 if nv.get_device() == 'VLX':
                     trace_pose = fix_vlx_extrinsics(trace_pose)
