@@ -256,8 +256,10 @@ def undistort(ocam_model,
     # load image
     src = cv2.imread(input_image_path, cv2.IMREAD_IGNORE_ORIENTATION | cv2.IMREAD_COLOR)
     height, width = src.shape[:2]
-    assert width > height, (height, width, input_image_path)
-
+    assert width > height, (
+        f"Error: Width ({width}) should be greater than height ({height}). "
+        f"Found in file: {input_image_path}"
+    )
     # remap and save image
     save_remaped_image(src, mapx, mapy, output_image_path)
 

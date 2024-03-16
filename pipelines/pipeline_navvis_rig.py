@@ -106,6 +106,7 @@ def run(
     qrcode_detection: bool = True,
     use_simplified_mesh: bool = False,
     visualization: bool = True,
+    downsample_max_edge: Optional[int] = None,
     **kargs,
 ):
     capture_path = output_path or Path.cwd() / "lamar-capture-format"
@@ -139,6 +140,7 @@ def run(
                 session,
                 export_as_rig=True,
                 export_trace=True,
+                downsample_max_edge=downsample_max_edge,
                 copy_pointcloud=True,
             )
 
@@ -302,6 +304,13 @@ if __name__ == "__main__":
         required=False,
         default=False,
         help="Write out QR maps in json format. Default: False.",
+    )
+    parser.add_argument(
+        "--downsample_max_edge",
+        type=int,
+        default=None,
+        help="Downsample the resolution of RGB images and depth maps. "
+        "This reduces data size and processing time.",
     )
     args = parser.parse_args().__dict__
 
