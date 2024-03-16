@@ -61,6 +61,8 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
 
     # trace.csv is correctly exported only if export_as_rig is True.
     if export_trace:
+        if export_as_rig==False:
+            logger.warning('export_trace was set to True, but export_as_rig to False.')
         export_as_rig = True
 
     output_path = capture.data_path(session_id)

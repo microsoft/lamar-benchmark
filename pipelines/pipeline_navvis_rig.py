@@ -138,7 +138,7 @@ def run(
                 tiles_format,
                 session,
                 export_as_rig=True,
-                export_as_trace=True,
+                export_trace=True,
                 copy_pointcloud=True,
             )
 
