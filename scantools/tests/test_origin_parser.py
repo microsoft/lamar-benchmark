@@ -40,8 +40,5 @@ from ..scanners.navvis import origin_parser
 ])
 
 def test_parse_navvis_origin(input_data, expected_output_csv):
-    print("?",expected_output_csv)
-    csv = origin_parser.convert_navvis_origin_to_csv(input_data)
-    print("?",csv)
-    assert expected_output_csv.replace(" ","") == csv.replace(" ","")
+    assert expected_output_csv.replace(" ","") == origin_parser.convert_navvis_origin_to_csv(input_data).replace(" ","")
 
