@@ -5,7 +5,7 @@ import PIL.Image
 import numpy as np
 
 from . import logger
-from .capture import Capture, RecordsDepth
+from .capture import Capture, RecordsDepth, Pose
 from .proc.rendering import Renderer
 from .utils.io import read_mesh, write_depth
 
@@ -23,6 +23,12 @@ def run(capture: Capture, session_id: str, mesh_id: str = 'mesh',
     mesh = read_mesh(mesh_path)
     renderer = Renderer(mesh)
 
+    #0.86445735537506196,0,0,-0.50270615744981062,6043.9339641732458,2379.3320725416165,100.81871594678488
+    q=[0.86445735537506196,0,0,-0.50270615744981062]
+    p=[6043.9339641732458,2379.3320725416165,100.81871594678488]
+    crs_from_world = Pose(q, p)
+    
+
     depths = session.depths
     if depths is None:
         depths = session.depths = RecordsDepth()
@@ -35,9 +41,10 @@ def run(capture: Capture, session_id: str, mesh_id: str = 'mesh',
             rig_id = next(iter(session.trajectories[ts]))
             rig_from_cam = session.rigs[rig_id, camera_id]
             world_from_rig = session.trajectories[ts, rig_id]
-            pose_cam2w = world_from_rig * rig_from_cam
+            pose_cam2w = crs_from_world * world_from_rig * rig_from_cam
 
         camera = session.sensors[camera_id]
+        
         rgb, depth_map = renderer.render_from_capture(pose_cam2w, camera)
 
         image_path = session.images[ts, camera_id]
