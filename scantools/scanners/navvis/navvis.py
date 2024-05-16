@@ -330,24 +330,15 @@ class NavVis:
     def __get_raw_pose(self, frame_id, cam_id):
         cam_id = self._convert_cam_id_to_str(cam_id)
         data = self.__frames[frame_id][cam_id]
-
-        # get pose
-        qvec = np.array(data["quaternion"])
-        tvec = np.array(data["position"])
-
-        return qvec, tvec
+        return np.array(data["quaternion"]), np.array(data["position"])
 
     def get_camhead(self, frame_id):
         data = self.__frames[frame_id]["cam_head"]
-        qvec = np.array(data["quaternion"])
-        tvec = np.array(data["position"])
-        return qvec, tvec
+        return np.array(data["quaternion"]), np.array(data["position"])
 
     def get_footprint(self, frame_id):
         data = self.__frames[frame_id]["footprint"]
-        qvec = np.array(data["quaternion"])
-        tvec = np.array(data["position"])
-        return qvec, tvec
+        return np.array(data["quaternion"]), np.array(data["position"])
 
     def get_imu_pose(self):
         return self._imu["orientation"], self._imu["position"]
