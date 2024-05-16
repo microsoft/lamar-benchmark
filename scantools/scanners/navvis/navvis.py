@@ -343,6 +343,15 @@ class NavVis:
         tvec = np.array(data["position"])
         return qvec, tvec
 
+    def get_footprint(self, frame_id):
+        data = self.__frames[frame_id]["footprint"]
+        qvec = np.array(data["quaternion"])
+        tvec = np.array(data["position"])
+        return qvec, tvec
+
+    def get_imu_pose(self):
+        return self._imu["orientation"], self._imu["position"]
+
     # auxiliary function:
     #   fixes a camera-to-world qvec for upright fix
     def __upright_fix(self, qvec):
