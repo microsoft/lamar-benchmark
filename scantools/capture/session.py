@@ -7,7 +7,7 @@ from enum import Enum
 from .sensors import Sensors, Camera
 from .rigs import Rigs
 from .trajectories import Trajectories
-from .records import RecordsBluetooth, RecordsCamera, RecordsDepth, RecordsLidar, RecordsWifi
+from .records import RecordsBluetooth, RecordsCamera, RecordsDepth, RecordsLidar, RecordsWifi, NamedPoses
 from .proc import Proc
 from .pose import Pose
 
@@ -42,6 +42,7 @@ class Session:
     bt: Optional[RecordsBluetooth] = None
     proc: Optional[Proc] = None
     id: Optional[str] = None
+    namedposes: Optional[NamedPoses] = None
 
     data_dirname = 'raw_data'
     proc_dirname = 'proc'

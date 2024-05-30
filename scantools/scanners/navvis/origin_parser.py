@@ -1,17 +1,53 @@
 import json
 from pathlib import Path
 
+UNKNOWN_CRS_NAME = 'UNKNOWN'
+
+def is_navvis_origin_valid(navvis_origin : dict):
+    """
+    Check if the NavVis origin dictionary is valid
+    :param navvis_origin: NavVis origin dictionary
+    :return: True if valid, False otherwise
+    :rtype: bool
+    """
+    if  navvis_origin['Pose']['position']['x'] is None or \
+        navvis_origin['Pose']['position']['y'] is None or \
+        navvis_origin['Pose']['position']['z'] is None or \
+        navvis_origin['Pose']['orientation']['w'] is None or \
+        navvis_origin['Pose']['orientation']['x'] is None or \
+        navvis_origin['Pose']['orientation']['y'] is None or \
+        navvis_origin['Pose']['orientation']['z'] is None:
+        return False
+    return True
+
+def parse_navvis_origin_file(file_path : Path):
+    """
+    Read NavVis Origin File Format Version 1.0
+    :param file_path: Path to the file
+    :return: NavVis anchor origin dictionary
+    :rtype: Dict
+    """
+    if not file_path.exists():
+        print(f"Warning: Origin '{file_path}' does not exist.")
+        return {}
+
+    try:
+        with file_path.open() as f:
+            origin = json.load(f)
+            if not is_navvis_origin_valid(origin):
+                print("Invalid origin.json file", json.dumps(origin, indent=4))
+            return origin
+    except Exception as e:
+        print("Warning Failed reading origin.json file.", e)
+    return {}
 
 def convert_navvis_origin_to_csv(navvis_origin : dict):
     csv_str = "# CRS, qw, qx, qy, qz, tx, ty, tz\n"
-
-    #CRS stands for Coordinate Reference System (CRS)
-    #Example: EPSG:25834 https://epsg.io/25834
         
     if 'CRS' in navvis_origin:
         crs = navvis_origin['CRS']
     else:
-        crs = "unknown"
+        crs = UNKNOWN_CRS_NAME
 
     position = navvis_origin['Pose']['position']
     orientation = navvis_origin['Pose']['orientation']
@@ -24,25 +60,7 @@ def convert_navvis_origin_to_csv(navvis_origin : dict):
                 f"{position['x']},"
                 f"{position['y']},"
                 f"{position['z']}\n")
-    
     return csv_str
-
-
-def convert_navvis_origin_file_to_csv(file_path : Path):
-    """
-    Read NavVis SLAM Anchor Origin File Format Version 1.0 and write as csv file.
-    The navvis origin file is a json file stored in the 'anchors' folder.
-    :param file_path: Path to the file
-    :return: NavVis anchor origin
-    :rtype: Dict
-    """
-
-    if not file_path.exists():
-        return
-
-    with file_path.open() as f:
-        navvis_origin = json.load(f)
-        return convert_navvis_origin_to_csv(navvis_origin)
         
         
     
