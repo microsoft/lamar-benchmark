@@ -157,14 +157,21 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
         # Add "trace" as a sensor.
         sensors['trace'] = create_sensor('trace', name='Mapping path')
 
-        qvec, tvec = nv._imu["orientation"], nv._imu["position"]
-        camhead_from_imu = Pose(r=qvec, t=tvec)
-        imu_from_camhead = camhead_from_imu.inverse()
-
-        # Rig is in cam0 frame.
+        # Rig to CamHead. Rig is in cam0 frame.
         cam0 = nv.get_cameras()["cam0"]
-        qvec, tvec = cam0["orientation"], cam0["position"]
-        camhead_from_rig = Pose(r=qvec, t=tvec)
+        camhead_from_rig = Pose(r=cam0["orientation"], t=cam0["position"])
+
+        # Rig to IMU.
+        imu_pose = Pose(*nv.get_imu_pose())
+        if nv.get_device() == 'VLX':
+            imu_from_camhead = imu_pose.inverse()
+            imu_from_rig = imu_from_camhead * camhead_from_rig
+        elif nv.get_device() == 'M6':
+            imu_from_footprint = imu_pose.inverse()
+            world_from_camhead = Pose(*nv.get_camhead(frame_id=0))
+            world_from_footprint = Pose(*nv.get_footprint(frame_id=0))
+            footprint_from_camhead = world_from_footprint.inverse() * world_from_camhead
+            imu_from_rig = imu_from_footprint * footprint_from_camhead * camhead_from_rig
 
         for trace in nv.get_trace():
             timestamp_us = int(trace["nsecs"]) // 1_000  # convert from ns to us
@@ -178,7 +185,7 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
             # The rig is located in cam_id=0, tile_id=0.
             tile0_pose = Pose(r=nv.get_tile_rotation(0), t=np.zeros(3)).inverse()
 
-            trace_pose = world_from_imu * imu_from_camhead * camhead_from_rig * tile0_pose
+            trace_pose = world_from_imu * imu_from_rig * tile0_pose
 
             if upright:
                 # Images are rotated by 90 degrees clockwise.
