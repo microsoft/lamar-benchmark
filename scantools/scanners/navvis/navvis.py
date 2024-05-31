@@ -77,7 +77,7 @@ class NavVis:
             raise FileNotFoundError(f'Input path {self._input_path}.')
         
         # Origin file path
-        self._origin_file_path = self._input_path / "artifacts" / "origin.json"
+        self._origin_file_path = self._input_path / "anchors" / "origin.json"
 
         # Images path
         self._input_image_path = self._input_path / "cam"
