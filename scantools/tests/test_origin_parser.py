@@ -4,8 +4,7 @@ import json
 import os
 
 from scipy.spatial.transform import Rotation
-from ..capture import Pose
-from ..proc import GlobalAlignment
+from ..capture import Pose, GlobalAlignment
 
 from ..scanners.navvis import origin_parser
 

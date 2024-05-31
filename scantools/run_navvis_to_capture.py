@@ -13,8 +13,7 @@ from .scanners.navvis.camera_tiles import TileFormat
 from .capture import (
         Capture, Session, Sensors, create_sensor, Trajectories, Rigs, Pose,
         RecordsCamera, RecordsLidar, RecordBluetooth, RecordBluetoothSignal,
-        RecordsBluetooth, RecordWifi, RecordWifiSignal, RecordsWifi)
-from .proc import ( GlobalAlignment )
+        RecordsBluetooth, RecordWifi, RecordWifiSignal, RecordsWifi, GlobalAlignment)
 from .utils.misc import add_bool_arg
 from .utils.io import read_image, write_image
 
