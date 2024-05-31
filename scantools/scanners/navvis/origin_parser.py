@@ -41,6 +41,36 @@ def parse_navvis_origin_file(file_path : Path):
         print("Warning Failed reading origin.json file.", e)
     return {}
 
+
+def get_crs_from_navvis_origin(navvis_origin : dict):
+    """
+    Get the label from the NavVis origin
+    :param navvis_origin: NavVis origin dictionary
+    :return: Label
+    :rtype: str
+    """
+    
+    return navvis_origin.get('CRS', UNKNOWN_CRS_NAME)
+
+
+def get_pose_from_navvis_origin(navvis_origin : dict):
+    """
+    Extract the pose from the NavVis origin dictionary
+    :param navvis_origin: NavVis origin dictionary
+    :return: Quaternion and translation vector
+    :rtype: qvec, tvec
+    """
+
+    qvec = [1, 0, 0, 0]
+    tvec = [0, 0, 0]        
+    if navvis_origin:
+        orientation = navvis_origin['orientation']
+        position = navvis_origin['position']
+        qvec = [orientation['w'], orientation['x'], orientation['y'], orientation['z']]
+        tvec = [position['x'], position['y'], position['z']]
+    return qvec, tvec
+
+
 def convert_navvis_origin_to_csv(navvis_origin : dict):
     csv_str = "# CRS, qw, qx, qy, qz, tx, ty, tz\n"
         

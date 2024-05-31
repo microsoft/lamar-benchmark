@@ -3,6 +3,10 @@ import pytest
 import json
 import os
 
+from scipy.spatial.transform import Rotation
+from ..capture import Pose
+from ..proc import GlobalAlignment
+
 from ..scanners.navvis import origin_parser
 
 @pytest.mark.parametrize("nominal_origin, expected_output_csv", [({
@@ -47,7 +51,16 @@ def test_parse_navvis_origin(nominal_origin, expected_output_csv, tmp_path):
     origin = origin_parser.parse_navvis_origin_file(temp_origin_path)
     assert origin == nominal_origin
     assert expected_output_csv.replace(" ","") == origin_parser.convert_navvis_origin_to_csv(origin).replace(" ","")
-    os.remove(temp_origin_path)    
+    os.remove(temp_origin_path)
+
+    global_alignment_path = tmp_path / 'origin.txt'
+    global_alignment = GlobalAlignment()
+    crs = origin_parser.get_crs_from_navvis_origin(origin)
+    qvec, tvec = origin_parser.get_pose_from_navvis_origin(origin)
+    global_alignment[crs, global_alignment.no_ref] = (
+            Pose(qvec, tvec), [])
+    global_alignment.save(global_alignment_path)    
+    os.remove(global_alignment_path)    
 
 @pytest.mark.parametrize("bad_json_keys_origin", [{
     "CRS": "EPSG:25834",

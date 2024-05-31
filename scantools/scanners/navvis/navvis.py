@@ -10,7 +10,7 @@ import numpy as np
 from .camera_tiles import Tiles, TileFormat
 from .ibeacon_parser import parse_navvis_ibeacon_packet, BluetoothMeasurement
 from .iwconfig_parser import parse_iwconfig, WifiMeasurement
-from .origin_parser import UNKNOWN_CRS_NAME, parse_navvis_origin_file
+from .origin_parser import parse_navvis_origin_file, get_pose_from_navvis_origin, get_crs_from_navvis_origin
 from . import ocamlib
 from ...utils import transform
 from ...utils.io import read_csv, convert_dng_to_jpg
@@ -685,14 +685,8 @@ class NavVis:
         return wifi_measurements
     
     def get_origin(self):
-        crs = UNKNOWN_CRS_NAME
-        qvec = [1, 0, 0, 0]
-        tvec = [0, 0, 0]        
-        if self.__origin_data:
-            orientation = self.__origin_data['orientation']
-            position = self.__origin_data['position']
-            qvec = [orientation['w'], orientation['x'], orientation['y'], orientation['z']]
-            tvec = [position['x'], position['y'], position['z']]
+        crs = get_crs_from_navvis_origin(self.__origin_data)
+        qvec, tvec = get_pose_from_navvis_origin(self.__origin_data)    
         return crs, qvec, tvec
     
     def load_origin(self):
