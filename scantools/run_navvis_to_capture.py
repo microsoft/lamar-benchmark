@@ -245,6 +245,7 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
         global_alignment[origin_crs, global_alignment.no_ref] = (
             Pose(r=origin_qvec, t=origin_tvec), [])   
         global_alignment.save(global_alginment_path)
+        logger.info('Loaded NavVis origin.json and saved to %s.', global_alginment_path)
 
     logger.info('Generating raw data for session %s.', session_id)
     nv.undistort()
