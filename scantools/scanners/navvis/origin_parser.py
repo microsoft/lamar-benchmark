@@ -23,7 +23,30 @@ def is_navvis_origin_valid(navvis_origin : dict):
 
 def parse_navvis_origin_file(file_path : Path):
     """
-    Read NavVis Origin File Format Version 1.0
+    * The origin.json file is optional and if present it can be found 
+    in the anchors folder.
+
+    * The origin.json file contains two important values: pose and CRS.
+
+    * The pose transforms dataset entities into the origin. The origin 
+        of the dataset can be created in many different ways:
+        0 - The origin is the NavVis 'dataset' origin, where a dataset equals a NavVis session. 
+            The origin then defaults to identity and the origin.json file might not be even present.
+        1 - NavVis software allows relative alignment between dataset via the NavVis IVION Dataset Web Editor 
+            but also via the NavVis local processing software which is soon to be deprecated.
+        2 - The origin is the NavVis Site origin. NavVis organizes datasets in the same physical location
+            via Sites. The origin file contains then the transformation which moves all the entities of a 
+            NavVis dataset into the Site origin. Additionally NavVis IVION allows to register the Site origin
+            to a global coordinate system. Hence, many NavVis sessions can be registered then to the same 
+            global coordinate system. Note that this is achieved via the NavVis IVION Dataset Web Editor.
+        3 - The origin lies in a Coordinate Reference System (CRS) like EPSG:25834 https://epsg.io/25834.
+            The transformation is computed via geo-referenced Control Points which are registered during
+            capture. More information about control points and the origin can be found here:
+            https://knowledge.navvis.com/v1/docs/creating-the-control-point-poses-file 
+            https://knowledge.navvis.com/docs/what-coordinate-system-do-we-use-for-the-control-points-related-tasks
+
+    * The CRS value stands for Coordinate Reference System (CRS) and explains in which coordinate system the origin itself
+        is defined. Example: EPSG:25834 https://epsg.io/25834
     :param file_path: Path to the file
     :return: NavVis anchor origin dictionary
     :rtype: Dict
