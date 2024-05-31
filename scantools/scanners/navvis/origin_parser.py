@@ -91,9 +91,3 @@ def convert_navvis_origin_to_csv(navvis_origin : dict):
                 f"{position['y']},"
                 f"{position['z']}\n")
     return csv_str
-        
-        
-    
-
-
-

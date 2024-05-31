@@ -4,9 +4,7 @@ import json
 import os
 import numpy as np
 
-from scipy.spatial.transform import Rotation
 from ..capture import Pose, GlobalAlignment
-
 from ..scanners.navvis import origin_parser
 
 @pytest.mark.parametrize("navvis_origin, expected_csv_output", [({
@@ -54,20 +52,24 @@ def test_parse_navvis_origin(navvis_origin, expected_csv_output, tmp_path):
     assert navvis_origin_loaded == navvis_origin
     os.remove(navvis_origin_path)
 
-    global_alignment = GlobalAlignment()
+    alignment = GlobalAlignment()
     crs = origin_parser.get_crs_from_navvis_origin(navvis_origin_loaded)
     qvec, tvec = origin_parser.get_pose_from_navvis_origin(navvis_origin_loaded)
     alignment_pose = Pose(qvec, tvec)
-    global_alignment[crs, global_alignment.no_ref] = (
+    alignment[crs, alignment.no_ref] = (
             alignment_pose, [])
-    global_alignment_path = tmp_path / 'origin.txt'
-    global_alignment.save(global_alignment_path)
+    alignment_path = tmp_path / 'origin.txt'
+    alignment.save(alignment_path)
 
-    global_alignment_loaded = GlobalAlignment().load(global_alignment_path)
-    os.remove(global_alignment_path)
-    assert np.allclose(global_alignment_loaded.get_abs_pose(crs).to_list(), 
-                       alignment_pose.to_list(), 1e-10)
+    alignment_loaded = GlobalAlignment().load(alignment_path)
+    os.remove(alignment_path)
     
+    alignment_pose_loaded = alignment_loaded.get_abs_pose(crs)
+    assert np.allclose(alignment_pose_loaded.qvec, 
+                       alignment_pose.qvec, 1e-10)
+    assert np.allclose(alignment_pose_loaded.t, 
+                       alignment_pose.t, 1e-10)
+
 
 @pytest.mark.parametrize("bad_json_keys_origin", [{
     "CRS": "EPSG:25834",
@@ -106,4 +108,3 @@ def test_parse_navvis_origin_bad_input(bad_json_keys_origin, tmp_path):
         json.dump(bad_json_keys_origin, file)
     assert not origin_parser.parse_navvis_origin_file(temp_origin_path)
     os.remove(temp_origin_path)
-

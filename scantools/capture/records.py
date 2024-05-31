@@ -8,7 +8,6 @@ from abc import ABC, abstractproperty, abstractmethod
 from typing import Dict, List, Set, TypeVar, Union
 import numpy as np
 
-from .pose import Pose
 from ..utils.io import read_csv, write_csv
 from .misc import KeyType
 
