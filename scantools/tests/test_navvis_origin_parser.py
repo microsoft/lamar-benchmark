@@ -2,13 +2,14 @@
 import pytest
 import json
 import os
+import numpy as np
 
 from scipy.spatial.transform import Rotation
 from ..capture import Pose, GlobalAlignment
 
 from ..scanners.navvis import origin_parser
 
-@pytest.mark.parametrize("nominal_origin, expected_output_csv", [({
+@pytest.mark.parametrize("navvis_origin, expected_csv_output", [({
     "CRS": "EPSG:25834",
     "Pose": {
         "orientation": {
@@ -23,9 +24,9 @@ from ..scanners.navvis import origin_parser
             "z": 99.95
         }
     }},
-     "# CRS, qw, qx, qy, qz, \
+     "# label, reference_id, qw, qx, qy, qz, \
         tx, ty, tz\n\
-        EPSG:25834,0.8,0,0,-0.5,\
+        EPSG:25834,__absolute__,0.8,0,0,-0.5,\
         6.3,2.4,99.95\n"),
     ({
         "Pose": {  
@@ -41,25 +42,32 @@ from ..scanners.navvis import origin_parser
                 "z": 0
             }
         }
-    }, "# CRS, qw, qx, qy, qz, tx, ty, tz\n" + origin_parser.UNKNOWN_CRS_NAME + ",0.5,0,0,0,0,0,0\n"),
+    }, "# label, reference_id, qw, qx, qy, qz, tx, ty, tz\n" +
+      origin_parser.UNKNOWN_CRS_NAME + ",__absolute__,0.5,0,0,0,0,0,0\n"),
 ])
-def test_parse_navvis_origin(nominal_origin, expected_output_csv, tmp_path):
-    temp_origin_path = tmp_path / "input_data.json"
-    with open(temp_origin_path, 'w') as file:
-        json.dump(nominal_origin, file)
-    origin = origin_parser.parse_navvis_origin_file(temp_origin_path)
-    assert origin == nominal_origin
-    assert expected_output_csv.replace(" ","") == origin_parser.convert_navvis_origin_to_csv(origin).replace(" ","")
-    os.remove(temp_origin_path)
+def test_parse_navvis_origin(navvis_origin, expected_csv_output, tmp_path):
+    navvis_origin_path = tmp_path / "navvis_origin.json"
+    with open(navvis_origin_path, 'w') as file:
+        json.dump(navvis_origin, file)
 
-    global_alignment_path = tmp_path / 'origin.txt'
+    navvis_origin_loaded = origin_parser.parse_navvis_origin_file(navvis_origin_path)
+    assert navvis_origin_loaded == navvis_origin
+    os.remove(navvis_origin_path)
+
     global_alignment = GlobalAlignment()
-    crs = origin_parser.get_crs_from_navvis_origin(origin)
-    qvec, tvec = origin_parser.get_pose_from_navvis_origin(origin)
+    crs = origin_parser.get_crs_from_navvis_origin(navvis_origin_loaded)
+    qvec, tvec = origin_parser.get_pose_from_navvis_origin(navvis_origin_loaded)
+    alignment_pose = Pose(qvec, tvec)
     global_alignment[crs, global_alignment.no_ref] = (
-            Pose(qvec, tvec), [])
-    global_alignment.save(global_alignment_path)    
-    os.remove(global_alignment_path)    
+            alignment_pose, [])
+    global_alignment_path = tmp_path / 'origin.txt'
+    global_alignment.save(global_alignment_path)
+
+    global_alignment_loaded = GlobalAlignment().load(global_alignment_path)
+    os.remove(global_alignment_path)
+    assert np.allclose(global_alignment_loaded.get_abs_pose(crs).to_list(), 
+                       alignment_pose.to_list(), 1e-10)
+    
 
 @pytest.mark.parametrize("bad_json_keys_origin", [{
     "CRS": "EPSG:25834",
@@ -97,7 +105,5 @@ def test_parse_navvis_origin_bad_input(bad_json_keys_origin, tmp_path):
     with open(temp_origin_path, 'w') as file:
         json.dump(bad_json_keys_origin, file)
     assert not origin_parser.parse_navvis_origin_file(temp_origin_path)
-    with pytest.raises(KeyError):
-        origin_parser.convert_navvis_origin_to_csv(bad_json_keys_origin)
     os.remove(temp_origin_path)
 
