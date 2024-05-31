@@ -419,15 +419,17 @@ def Rz(theta):
     return Rotation.from_euler('z', theta, degrees=True)
 
 @pytest.mark.parametrize(
-    "rot,tvec",
+    "label,rot,tvec",
     [
+        ("Dataset1","Dataset2"),
         (['1', '0', '0', '0'], ['0', '1', '1']),
         (Rz(30), ['1', '1', '0'])
     ])
-def test_pose_valid(rot, tvec, tmp_path):
-    temp_file_path = tmp_path / 'named_poses.csv'
-    pose = Pose(rot, tvec)
+def test_pose_valid(label, rot, tvec, tmp_path):
+    global_alginment_path = tmp_path / 'origin.txt'
     global_alignment = GlobalAlignment()
-    #global_alignment.save(temp_file_path, [pose])    
-    #os.remove(temp_file_path)
+    global_alignment[label, global_alignment.no_ref] = (
+            Pose(rot, tvec), [])
+    global_alignment.save(global_alginment_path)
+    os.remove(global_alginment_path)
 

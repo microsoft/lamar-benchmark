@@ -97,15 +97,7 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
     sensors = Sensors()
     trajectory = Trajectories()
     images = RecordsCamera()
-    rigs = Rigs() if export_as_rig else None
-
-    # Read the NavVis origin.json file if present and convert to Capture format.
-    if nv.load_origin():
-        origin_qvec, origin_tvec, origin_crs = nv.get_origin()
-        origin_pose = Pose(r=origin_qvec, t=origin_tvec)
-        global_alignment = GlobalAlignment()
-        global_alignment.origin = origin_pose
-        
+    rigs = Rigs() if export_as_rig else None    
 
     if export_as_rig:
         # This code assumes NavVis produces consistent rigs across all frames,
@@ -245,6 +237,15 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
         images=images, pointclouds=pointclouds, wifi=wifi_signals, bt=bluetooth_signals)
     capture.sessions[session_id] = session
     capture.save(capture.path, session_ids=[session_id])
+
+    # Read the NavVis origin.json file if present and use proc.GlobalAlignment to save it.
+    if nv.load_origin():
+        global_alginment_path = capture.data_path(session_id) / "origin.txt"
+        origin_qvec, origin_tvec, origin_crs = nv.get_origin()
+        global_alignment = GlobalAlignment()
+        global_alignment[origin_crs, global_alignment.no_ref] = (
+            Pose(r=origin_qvec, t=origin_tvec), [])   
+        global_alignment.save(global_alginment_path)
 
     logger.info('Generating raw data for session %s.', session_id)
     nv.undistort()
