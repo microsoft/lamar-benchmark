@@ -64,8 +64,8 @@ def get_pose_from_navvis_origin(navvis_origin : dict):
     qvec = [1, 0, 0, 0]
     tvec = [0, 0, 0]        
     if navvis_origin:
-        orientation = navvis_origin['orientation']
-        position = navvis_origin['position']
+        orientation = navvis_origin['Pose']['orientation']
+        position = navvis_origin['Pose']['position']
         qvec = [orientation['w'], orientation['x'], orientation['y'], orientation['z']]
         tvec = [position['x'], position['y'], position['z']]
     return qvec, tvec
