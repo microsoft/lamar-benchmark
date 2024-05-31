@@ -7,14 +7,16 @@ import numpy as np
 from ..capture import Pose, GlobalAlignment
 from ..scanners.navvis import origin_parser
 
+GLOBAL_ALIGNMENT_TABLE_HEADER = "# label, reference_id, qw, qx, qy, qz, tx, ty, tz, [info]+\n"
+
 @pytest.mark.parametrize("navvis_origin, expected_csv_output", [({
     "CRS": "EPSG:25834",
     "Pose": {
         "orientation": {
-            "w": 0.8,
+            "w": 0.7071068,
             "x": 0,
             "y": 0,
-            "z": -0.5
+            "z": -0.7071068
         },
         "position": {
             "x": 6.3,
@@ -22,14 +24,13 @@ from ..scanners.navvis import origin_parser
             "z": 99.95
         }
     }},
-     "# label, reference_id, qw, qx, qy, qz, \
-        tx, ty, tz\n\
-        EPSG:25834,__absolute__,0.8,0,0,-0.5,\
-        6.3,2.4,99.95\n"),
+     GLOBAL_ALIGNMENT_TABLE_HEADER + "EPSG:25834, __absolute__," + 
+     " 0.7071067811865476, 0.0, 0.0, -0.7071067811865476," + 
+     " 6.3, 2.4, 99.95\n"),
     ({
         "Pose": {  
             "orientation": {
-                "w": 0.5,
+                "w": 1,
                 "x": 0,
                 "y": 0,
                 "z": 0
@@ -40,8 +41,9 @@ from ..scanners.navvis import origin_parser
                 "z": 0
             }
         }
-    }, "# label, reference_id, qw, qx, qy, qz, tx, ty, tz\n" +
-      origin_parser.UNKNOWN_CRS_NAME + ",__absolute__,0.5,0,0,0,0,0,0\n"),
+    }, GLOBAL_ALIGNMENT_TABLE_HEADER + origin_parser.UNKNOWN_CRS_NAME + ", __absolute__," + 
+    " 1.0, 0.0, 0.0, 0.0," + 
+    " 0.0, 0.0, 0.0\n"),
 ])
 def test_parse_navvis_origin(navvis_origin, expected_csv_output, tmp_path):
     navvis_origin_path = tmp_path / "navvis_origin.json"
@@ -60,6 +62,12 @@ def test_parse_navvis_origin(navvis_origin, expected_csv_output, tmp_path):
             alignment_pose, [])
     alignment_path = tmp_path / 'origin.txt'
     alignment.save(alignment_path)
+
+    with open(alignment_path, 'r') as file:
+        csv_output = file.read()
+        print(csv_output)
+        print(expected_csv_output)
+        assert csv_output == expected_csv_output
 
     alignment_loaded = GlobalAlignment().load(alignment_path)
     os.remove(alignment_path)

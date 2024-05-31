@@ -5,7 +5,8 @@ UNKNOWN_CRS_NAME = 'UNKNOWN'
 
 def is_navvis_origin_valid(navvis_origin : dict):
     """
-    Check if the NavVis origin dictionary is valid
+    Check if the NavVis origin dictionary is valid.
+    CRS is optional. Pose is required.
     :param navvis_origin: NavVis origin dictionary
     :return: True if valid, False otherwise
     :rtype: bool
