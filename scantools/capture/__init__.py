@@ -10,4 +10,3 @@ from .records import (
 from .pose import Pose
 from .proc import Proc
 from .misc import KeyType
-from .namedposes import NamedPoses

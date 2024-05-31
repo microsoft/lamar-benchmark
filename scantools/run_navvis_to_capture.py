@@ -13,7 +13,8 @@ from .scanners.navvis.camera_tiles import TileFormat
 from .capture import (
         Capture, Session, Sensors, create_sensor, Trajectories, Rigs, Pose,
         RecordsCamera, RecordsLidar, RecordBluetooth, RecordBluetoothSignal,
-        RecordsBluetooth, RecordWifi, RecordWifiSignal, RecordsWifi, NamedPoses)
+        RecordsBluetooth, RecordWifi, RecordWifiSignal, RecordsWifi)
+from .proc import ( GlobalAlignment )
 from .utils.misc import add_bool_arg
 from .utils.io import read_image, write_image
 
@@ -102,10 +103,9 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
     if nv.load_origin():
         origin_qvec, origin_tvec, origin_crs = nv.get_origin()
         origin_pose = Pose(r=origin_qvec, t=origin_tvec)
-        origin_poses = NamedPoses()
-        origin_poses['origin'] = origin_pose    
-
-
+        global_alignment = GlobalAlignment()
+        global_alignment.origin = origin_pose
+        
 
     if export_as_rig:
         # This code assumes NavVis produces consistent rigs across all frames,
@@ -242,7 +242,7 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
 
     session = Session(
         sensors=sensors, rigs=rigs, trajectories=trajectory,
-        images=images, pointclouds=pointclouds, wifi=wifi_signals, bt=bluetooth_signals, namedposes=origin_poses)
+        images=images, pointclouds=pointclouds, wifi=wifi_signals, bt=bluetooth_signals)
     capture.sessions[session_id] = session
     capture.save(capture.path, session_ids=[session_id])
 
