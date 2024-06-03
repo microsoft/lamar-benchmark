@@ -685,9 +685,16 @@ class NavVis:
         return wifi_measurements
     
     def get_origin(self):
+        """Returns the NavVis origin transformation vectors and coordinate reference
+        system (CRS) name.
+        Returns
+        -------
+        Tuple: Tuple containing the quaternion, translation vector, and CRS.
+        """
+
         crs = get_crs_from_navvis_origin(self.__origin_data)
         qvec, tvec = get_pose_from_navvis_origin(self.__origin_data)    
-        return crs, qvec, tvec
+        return qvec, tvec, crs
     
     def load_origin(self):
         """Tries loading the NavVis origin from file.
