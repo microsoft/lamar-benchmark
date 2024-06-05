@@ -68,8 +68,9 @@ T_w_i = sessions.trajectories[keys[0]]  # first pose, from sensor/rig to world
 
 :one: Install the core dependencies:
 
-- Python >= 3.8
-- [hloc](https://github.com/cvg/Hierarchical-Localization) and its dependencies, including [COLMAP](https://colmap.github.io/install.html) built from source
+- Python >= 3.9
+- [hloc v1.4](https://github.com/cvg/Hierarchical-Localization) and its dependencies, including [COLMAP 3.8](https://colmap.github.io/install.html) built from source.
+- [pyceres](https://github.com/cvg/pyceres) built from source at tag v1.0.
 
 :two: Install the LaMAR libraries and pull the remaining pip dependencies:
 ```bash
@@ -86,6 +87,35 @@ python -m pip install -e .
 ```bash
 python -m pip install -e .[dev]
 ```
+
+## Docker images
+
+The Dockerfile provided in this project has multiple stages, two of which are:
+`scantools` and `lamar`.
+
+### Building the Docker Images
+
+You can build the Docker images for these stages using the following commands:
+```bash
+# Build the 'scantools' stage
+docker build --target scantools -t lamar:scantools -f Dockerfile ./
+
+# Build the 'lamar' stage
+docker build --target lamar -t lamar:lamar -f Dockerfile ./
+```
+
+### Pulling the Docker Images from GitHub Docker Registry
+
+Alternatively, if you don't want to build the images yourself, you can pull them
+from the GitHub Docker Registry using the following commands:
+```bash
+# Pull the 'scantools' image
+docker pull ghcr.io/microsoft/lamar-benchmark/scantools:latest
+
+# Pull the 'lamar' image
+docker pull ghcr.io/microsoft/lamar-benchmark/lamar:latest
+```
+
 
 ## Benchmark
 
@@ -209,6 +239,7 @@ Here are runfiles that could be handy for importing and exporting data:
 - `run_image_anonymization`: anonymize faces and license plates using the [Brighter.AI](https://brighter.ai/) API
 - `run_radio_anonymization`: anonymize radio signal IDs
 - `run_combine_sequences`: combine multiple sequence sessions into a single session
+- `run_qrcode_detection`: detect QR codes in images and store their poses
 
 ## Raw data
 

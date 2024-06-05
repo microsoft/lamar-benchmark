@@ -3,7 +3,7 @@ import logging
 import multiprocessing
 from pathlib import Path, PurePath
 from typing import Optional
-
+from tqdm.contrib.concurrent import process_map
 from bs4 import BeautifulSoup
 import numpy as np
 
@@ -12,7 +12,7 @@ from .ibeacon_parser import parse_navvis_ibeacon_packet, BluetoothMeasurement
 from .iwconfig_parser import parse_iwconfig, WifiMeasurement
 from . import ocamlib
 from ...utils import transform
-from ...utils.io import read_csv
+from ...utils.io import read_csv, convert_dng_to_jpg
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +27,8 @@ class NavVis:
         self._input_json_path = None
         self._camera_file_path = None
         self._pointcloud_file_path = None
+        self._trace_path = None
+        self._imu = None
 
         self._output_path = None
         self._output_image_path = None
@@ -34,6 +36,7 @@ class NavVis:
 
         self.__cameras = {}
         self.__frames = {}
+        self.__trace = {}
 
         # upright fix
         self.__upright = upright
@@ -60,6 +63,10 @@ class NavVis:
         # set tiles format
         self.set_tiles_format(tiles_format)
 
+        # mapping path: position, orientation, and magnetic field information in
+        # frequent intervals
+        self.load_trace()
+
     def _set_dataset_paths(self, input_path: Path, output_path: Optional[Path], tiles_format: str):
         # Dataset path
         self._input_path = Path(input_path).absolute()
@@ -75,6 +82,10 @@ class NavVis:
         self._input_json_path = self._input_path / "info"
         if not self._input_json_path.exists():
             raise FileNotFoundError(f'Input json path {self._input_json_path}.')
+
+        # Mapping Path: file trace.csv contains position, orientation, and
+        # magnetic field information in frequent intervals
+        self._trace_path = self._input_path / "artifacts" / "trace.csv"
 
         self._camera_file_path = self._input_path / 'sensor_frame.xml'
 
@@ -116,6 +127,25 @@ class NavVis:
         """
         # get valid frame_ids parsing image folder
         valid_ids = sorted(self._input_image_path.glob("*-cam0.jpg"))
+
+        # If no jpg images were found, try converting dng images to jpg.
+        # This occurs when you don't have access to the datasets_proc/ folder,
+        # but only to the .nvd (from Navvis cloud) + datasets_rec/ folder.
+        if len(valid_ids) == 0:
+            dng_images = sorted(self._input_image_path.glob(f"*.dng"))
+            process_map(
+                convert_dng_to_jpg,
+                list(dng_images),
+                max_workers=self.get_processes(),
+                chunksize=1,
+                desc="Converting DNG to JPG",
+            )
+            valid_ids = sorted(self._input_image_path.glob(f"*-cam0.jpg"))
+
+        # Verify if jpg images were found.
+        if len(valid_ids) == 0:
+            raise FileNotFoundError(f'No valid images found in {self._input_image_path}.')
+
         for file_path in valid_ids:
             frame_id = int(file_path.name.split('-')[0])
 
@@ -144,37 +174,86 @@ class NavVis:
             camera_models = xml.find_all("cameramodel")
             for cam in camera_models:
                 # current camera dict
-                ocam_model = {}
+                cam_info = {}
 
                 # cam2world
                 coeff = cam.cam2world.find_all("coeff")
-                ocam_model['pol'] = [float(d.string) for d in coeff]
-                ocam_model['length_pol'] = len(coeff)
+                cam_info['pol'] = [float(d.string) for d in coeff]
+                cam_info['length_pol'] = len(coeff)
 
                 # world2cam
                 coeff = cam.world2cam.find_all("coeff")
-                ocam_model['invpol'] = [float(d.string) for d in coeff]
-                ocam_model['length_invpol'] = len(coeff)
+                cam_info['invpol'] = [float(d.string) for d in coeff]
+                cam_info['length_invpol'] = len(coeff)
 
-                ocam_model['xc'] = float(cam.cx.string)
-                ocam_model['yc'] = float(cam.cy.string)
-                ocam_model['c'] = float(cam.c.string)
-                ocam_model['d'] = float(cam.d.string)
-                ocam_model['e'] = float(cam.e.string)
-                ocam_model['height'] = int(cam.height.string)
-                ocam_model['width'] = int(cam.width.string)
+                cam_info['xc'] = float(cam.cx.string)
+                cam_info['yc'] = float(cam.cy.string)
+                cam_info['c'] = float(cam.c.string)
+                cam_info['d'] = float(cam.d.string)
+                cam_info['e'] = float(cam.e.string)
+                cam_info['height'] = int(cam.height.string)
+                cam_info['width'] = int(cam.width.string)
                 if self.__upright:
                     # only switch height and width to update undistortion sizes
                     # rest stays the same since we pre-rotate the target coordinates
-                    ocam_model['height'], ocam_model['width'] = (
-                        ocam_model['width'], ocam_model['height'])
-                ocam_model['upright'] = self.__upright
+                    cam_info['height'], cam_info['width'] = (
+                        cam_info['width'], cam_info['height'])
+                cam_info['upright'] = self.__upright
 
-                sensorname = cam.sensorname.string
-                cameras[sensorname] = ocam_model
+                # Rig information from sensor_frame.xml.
+                cam_info['position'] = np.array([
+                    cam.pose.position.x.string,
+                    cam.pose.position.y.string,
+                    cam.pose.position.z.string], dtype=float)
+                cam_info['orientation'] = np.array([
+                    cam.pose.orientation.w.string,
+                    cam.pose.orientation.x.string,
+                    cam.pose.orientation.y.string,
+                    cam.pose.orientation.z.string], dtype=float)
+
+                cameras[cam.sensorname.string] = cam_info
 
         # save metadata inside the class
         self.__cameras = cameras
+
+        # IMU information from sensor_frame.xml.
+        imu = {}
+        imu['position'] = np.array([
+            xml.imu.pose.position.x.string,
+            xml.imu.pose.position.y.string,
+            xml.imu.pose.position.z.string], dtype=float)
+        imu['orientation'] = np.array([
+            xml.imu.pose.orientation.w.string,
+            xml.imu.pose.orientation.x.string,
+            xml.imu.pose.orientation.y.string,
+            xml.imu.pose.orientation.z.string], dtype=float)
+        self._imu = imu
+
+    def load_trace(self):
+        expected_columns = [
+            "nsecs",
+            "x",
+            "y",
+            "z",
+            "ori_w",
+            "ori_x",
+            "ori_y",
+            "ori_z",
+            "mag_x",
+            "mag_y",
+            "mag_z",
+        ]
+        input_filepath = self._input_path / "artifacts" / "trace.csv"
+        rows = read_csv(input_filepath)
+        rows = rows[1:]  # remove header
+
+        # convert to dict
+        trace = []
+        for row in rows:
+            row_dict = {column: value for column, value in zip(expected_columns, row)}
+            trace.append(row_dict)
+
+        self.__trace = trace
 
     def get_input_path(self):
         return self._input_path
@@ -184,7 +263,7 @@ class NavVis:
 
     def get_output_path(self):
         return self._output_path
-    
+
     def get_device(self):
         return self.__device
 
@@ -209,6 +288,9 @@ class NavVis:
 
     def get_cameras(self):
         return self.__cameras
+
+    def get_trace(self):
+        return self.__trace
 
     def get_camera(self, camera_id):
         cam_id = self._convert_cam_id_to_str(camera_id)
@@ -248,12 +330,18 @@ class NavVis:
     def __get_raw_pose(self, frame_id, cam_id):
         cam_id = self._convert_cam_id_to_str(cam_id)
         data = self.__frames[frame_id][cam_id]
+        return np.array(data["quaternion"]), np.array(data["position"])
 
-        # get pose
-        qvec = np.array(data["quaternion"])
-        tvec = np.array(data["position"])
+    def get_camhead(self, frame_id):
+        data = self.__frames[frame_id]["cam_head"]
+        return np.array(data["quaternion"]), np.array(data["position"])
 
-        return qvec, tvec
+    def get_footprint(self, frame_id):
+        data = self.__frames[frame_id]["footprint"]
+        return np.array(data["quaternion"]), np.array(data["position"])
+
+    def get_imu_pose(self):
+        return self._imu["orientation"], self._imu["position"]
 
     # auxiliary function:
     #   fixes a camera-to-world qvec for upright fix
@@ -275,14 +363,7 @@ class NavVis:
 
         return qvec
 
-    # get pose of a particular frame and camera id
-    #
-    # Example:
-    #   frame_id = 1
-    #   get_pose(frame_id, "cam1")
-    #   get_pose(frame_id, 1)
-    #
-    def get_pose(self, frame_id, cam_id, tile_id=0):
+    def get_tile_rotation(self, tile_id):
         tiles = self.get_tiles()
         angles = tiles.angles[tile_id]
 
@@ -303,12 +384,21 @@ class NavVis:
         #
         R_tile = Ry @ Rx @ Rz   # even though it looks like a bug it is correct!
 
-        # get Rotation from tile angles
+        return R_tile
 
+
+    # get pose of a particular frame and camera id
+    #
+    # Example:
+    #   frame_id = 1
+    #   get_pose(frame_id, "cam1")
+    #   get_pose(frame_id, 1)
+    #
+    def get_pose(self, frame_id, cam_id, tile_id=0):
+        # get tile rotation
+        R_tile = self.get_tile_rotation(tile_id)
         T_rot_only = transform.create_transform_4x4(
             R_tile, np.array([0, 0, 0]))
-
-        # inverse of tile rotations
         T_rot_only_inv = np.linalg.inv(T_rot_only)
 
         # extrinsics: [R t]
@@ -394,6 +484,8 @@ class NavVis:
         # pool of workers
         num_processes = self.get_processes()
         logger.debug("Number of processes used: %d", num_processes)
+
+        logger.info("Starting with LUT creation...")
         pool = multiprocessing.Pool(processes=num_processes)
 
         for cam_id in self.get_camera_ids():
@@ -420,6 +512,7 @@ class NavVis:
 
         pool.close()
         pool.join()
+        logger.info("Done with LUT creation.")
 
     def undistort(self):
         # paths
