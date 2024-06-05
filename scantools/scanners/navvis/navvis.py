@@ -703,8 +703,7 @@ class NavVis:
         Bool : True if origin was successfully loaded, False otherwise.
         """
 
-        self.__origin_data = parse_navvis_origin_file(self._origin_file_path)
-        return self.__origin_data 
+        return parse_navvis_origin_file(self._origin_file_path)
 
 #
 # auxiliary function for parallel computing

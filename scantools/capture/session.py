@@ -8,7 +8,7 @@ from .sensors import Sensors, Camera
 from .rigs import Rigs
 from .trajectories import Trajectories
 from .records import RecordsBluetooth, RecordsCamera, RecordsDepth, RecordsLidar, RecordsWifi
-from .proc import Proc
+from .proc import Proc, GlobalAlignment
 from .pose import Pose
 
 logger = logging.getLogger(__name__)
@@ -42,6 +42,7 @@ class Session:
     bt: Optional[RecordsBluetooth] = None
     proc: Optional[Proc] = None
     id: Optional[str] = None
+    origins: Optional[GlobalAlignment] = None
 
     data_dirname = 'raw_data'
     proc_dirname = 'proc'

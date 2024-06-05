@@ -86,7 +86,7 @@ def get_pose_from_navvis_origin(navvis_origin : dict):
     """
 
     qvec = [1, 0, 0, 0]
-    tvec = [0, 0, 0]        
+    tvec = [0, 0, 0]
     if navvis_origin:
         orientation = navvis_origin['Pose']['orientation']
         position = navvis_origin['Pose']['position']
@@ -97,15 +97,12 @@ def get_pose_from_navvis_origin(navvis_origin : dict):
 
 def convert_navvis_origin_to_csv(navvis_origin : dict):
     csv_str = "# CRS, qw, qx, qy, qz, tx, ty, tz\n"
-        
     if 'CRS' in navvis_origin:
         crs = navvis_origin['CRS']
     else:
         crs = UNKNOWN_CRS_NAME
-
     position = navvis_origin['Pose']['position']
     orientation = navvis_origin['Pose']['orientation']
-    
     csv_str += (f"{crs},"
                 f"{orientation['w']},"
                 f"{orientation['x']},"

@@ -231,9 +231,21 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
             bluetooth_signals[timestamp_us, sensor_id] = RecordBluetooth()
         bluetooth_signals[timestamp_us, sensor_id][id] = RecordBluetoothSignal(rssi_dbm=rssi_dbm)
 
+    # Read the NavVis origin.json file if present and use proc.GlobalAlignment to save it.
+    navvis_origin = None
+    if nv.load_origin():
+        origin_qvec, origin_tvec, origin_crs = nv.get_origin()
+        navvis_origin = GlobalAlignment()
+        navvis_origin[origin_crs, navvis_origin.no_ref] = (
+            Pose(r=origin_qvec, t=origin_tvec),
+            [],
+        )
+        logger.info("Loaded NavVis origin.json")
+
     session = Session(
         sensors=sensors, rigs=rigs, trajectories=trajectory,
-        images=images, pointclouds=pointclouds, wifi=wifi_signals, bt=bluetooth_signals)
+        images=images, pointclouds=pointclouds, wifi=wifi_signals, bt=bluetooth_signals, 
+        origins=navvis_origin)
     capture.sessions[session_id] = session
     capture.save(capture.path, session_ids=[session_id])
 
