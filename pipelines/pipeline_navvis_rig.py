@@ -68,6 +68,7 @@ depth maps rendering, and QR code detection.
                     ├── rigs.txt
                     ├── sensors.txt
                     ├── trajectories.txt
+                    ├── origins.txt
                     └── wifi.txt
 
 1. **Mesh Generation**
