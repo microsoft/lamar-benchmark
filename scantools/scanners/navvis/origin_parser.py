@@ -1,5 +1,8 @@
 import json
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 UNKNOWN_CRS_NAME = 'UNKNOWN'
 
@@ -23,12 +26,15 @@ def is_navvis_origin_valid(navvis_origin : dict):
 
 def parse_navvis_origin_file(file_path : Path):
     """
-    * The origin.json file is optional and if present it can be found 
+    The origin.json file is optional and if present it can be found 
     in the anchors folder.
-
-    * The origin.json file contains two important values: pose and CRS.
-
-    * The pose transforms dataset entities into the origin. The origin 
+    
+    The origin.json file contains two important values: pose and CRS.
+    
+    The CRS value stands for Coordinate Reference System (CRS) and explains in which 
+    coordinate system the origin itself is defined. Example: EPSG:25834 https://epsg.io/25834
+    
+    The pose transforms dataset entities into the origin. The origin 
         of the dataset can be created in many different ways:
         0 - The origin is the NavVis 'dataset' origin, where a dataset equals a NavVis session. 
             The origin then defaults to identity and the origin.json file might not be even present.
@@ -45,8 +51,6 @@ def parse_navvis_origin_file(file_path : Path):
             https://knowledge.navvis.com/v1/docs/creating-the-control-point-poses-file 
             https://knowledge.navvis.com/docs/what-coordinate-system-do-we-use-for-the-control-points-related-tasks
 
-    * The CRS value stands for Coordinate Reference System (CRS) and explains in which coordinate system the origin itself
-        is defined. Example: EPSG:25834 https://epsg.io/25834
     :param file_path: Path to the file
     :return: NavVis anchor origin dictionary
     :rtype: Dict
@@ -62,7 +66,8 @@ def parse_navvis_origin_file(file_path : Path):
                 print("Invalid origin.json file", json.dumps(origin, indent=4))
             return origin
     except Exception as e:
-        print("Warning Failed reading origin.json file.", e)
+        logger.warning(
+            "Failed reading origin.json file. %s", e)
     return {}
 
 
