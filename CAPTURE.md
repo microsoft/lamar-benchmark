@@ -23,6 +23,7 @@ location1/                                  # a Capture directory
 │   │   ├── sensors.txt                     # list of all sensors with specs
 │   │   ├── trajectories.txt                # pose for each (timestamp, sensor)
 │   │   ├── wifi.txt                        # list of wifi measurements
+|   |   ├── origins.txt                     # list of NavVis session origins (label and alignment pose) 
 │   │   ├── raw_data/                       # root path of images, point clouds, etc.
 │   │   │   ├── images_undistorted/
 │   │   │   ├── render/                     # root path for the rgb and depth maps renderings

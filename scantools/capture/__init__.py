@@ -9,4 +9,5 @@ from .records import (
     RecordWifi, RecordWifiSignal, RecordsWifi)
 from .pose import Pose
 from .proc import Proc
+from .proc import GlobalAlignment
 from .misc import KeyType

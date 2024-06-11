@@ -10,6 +10,7 @@ import numpy as np
 from .camera_tiles import Tiles, TileFormat
 from .ibeacon_parser import parse_navvis_ibeacon_packet, BluetoothMeasurement
 from .iwconfig_parser import parse_iwconfig, WifiMeasurement
+from .origin_parser import parse_navvis_origin_file, get_pose_from_navvis_origin, get_crs_from_navvis_origin
 from . import ocamlib
 from ...utils import transform
 from ...utils.io import read_csv, convert_dng_to_jpg
@@ -29,6 +30,7 @@ class NavVis:
         self._pointcloud_file_path = None
         self._trace_path = None
         self._imu = None
+        self._origin_file_path = None
 
         self._output_path = None
         self._output_image_path = None
@@ -37,6 +39,7 @@ class NavVis:
         self.__cameras = {}
         self.__frames = {}
         self.__trace = {}
+        self.__origin_data = {}
 
         # upright fix
         self.__upright = upright
@@ -72,6 +75,9 @@ class NavVis:
         self._input_path = Path(input_path).absolute()
         if not self._input_path.exists():
             raise FileNotFoundError(f'Input path {self._input_path}.')
+        
+        # Origin file path
+        self._origin_file_path = self._input_path / "anchors" / "origin.json"
 
         # Images path
         self._input_image_path = self._input_path / "cam"
@@ -677,6 +683,27 @@ class NavVis:
                     wifi_measurements.append(wifi_measurement)
 
         return wifi_measurements
+    
+    def get_origin(self):
+        """Returns the NavVis origin transformation vectors and coordinate reference
+        system (CRS) name.
+        Returns
+        -------
+        Tuple: Tuple containing the quaternion, translation vector, and CRS.
+        """
+
+        crs = get_crs_from_navvis_origin(self.__origin_data)
+        qvec, tvec = get_pose_from_navvis_origin(self.__origin_data)    
+        return qvec, tvec, crs
+    
+    def load_origin(self):
+        """Tries loading the NavVis origin from file.
+        Returns
+        -------
+        Bool : True if origin was successfully loaded, False otherwise.
+        """
+        self.__origin_data = parse_navvis_origin_file(self._origin_file_path)
+        return self.__origin_data != {}
 
 #
 # auxiliary function for parallel computing
