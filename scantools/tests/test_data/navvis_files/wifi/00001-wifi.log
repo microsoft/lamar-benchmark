@@ -1,0 +1,172 @@
+BSS 5e:fb:3a:c4:1b:77(on wlx70f11c0b91af)
+	TSF: 5420491608388 usec (62d, 17:41:31)
+	freq: 2437
+	beacon interval: 100 TUs
+	capability: ESS Privacy SpectrumMgmt ShortSlotTime (0x0511)
+	signal: -72.00 dBm
+	last seen: 0 ms ago
+	Information elements from Probe Response frame:
+	SSID: DIRECT-77-HP M255 LaserJet
+	Supported rates: 6.0* 9.0 12.0* 18.0 24.0* 36.0 48.0 54.0 
+	DS Parameter set: channel 6
+	Power constraint: 0 dB
+	TPC report: TX power: 19 dBm
+	ERP: <no flags>
+	ERP D4.0: <no flags>
+	RSN:	 * Version: 1
+		 * Group cipher: CCMP
+		 * Pairwise ciphers: CCMP
+		 * Authentication suites: PSK
+		 * Capabilities: 16-PTKSA-RC 1-GTKSA-RC (0x000c)
+	HT capabilities:
+		Capabilities: 0x1ac
+			HT20
+			SM Power Save disabled
+			RX HT20 SGI
+			TX STBC
+			RX STBC 1-stream
+			Max AMSDU length: 3839 bytes
+			No DSSS/CCK HT40
+		Maximum RX AMPDU length 65535 bytes (exponent: 0x003)
+		Minimum RX AMPDU time spacing: 8 usec (0x06)
+		HT RX MCS rate indexes supported: 0-15
+		HT TX MCS rate indexes are undefined
+	HT operation:
+		 * primary channel: 6
+		 * secondary channel offset: no secondary
+		 * STA channel width: 20 MHz
+		 * RIFS: 1
+		 * HT protection: no
+		 * non-GF present: 0
+		 * OBSS non-GF present: 0
+		 * dual beacon: 0
+		 * dual CTS protection: 0
+		 * STBC beacon: 0
+		 * L-SIG TXOP Prot: 0
+		 * PCO active: 0
+		 * PCO phase: 0
+	WMM:	 * Parameter version 1
+		 * u-APSD
+		 * BE: CW 15-63, AIFSN 3
+		 * BK: CW 15-1023, AIFSN 7
+		 * VI: CW 7-15, AIFSN 1, TXOP 3008 usec
+		 * VO: CW 3-7, AIFSN 1, TXOP 1504 usec
+	WPS:	 * Version: 1.0
+		 * Wi-Fi Protected Setup State: 2 (Configured)
+		 * AP setup locked: 0x01
+		 * Selected Registrar: 0x0
+		 * Response Type: 3 (AP)
+		 * UUID: 564e4334-4b32-3332-3939-14cb197e4a29
+		 * Manufacturer: HP
+		 * Model: HP ColorLaserJet M255-M256
+		 * Model Number: 7KW64A
+		 * Serial Number: VNC4K23299
+		 * Primary Device Type: 3-0050f204-5
+		 * Device name: DIRECT-77-HP M255 LaserJet
+		 * Config methods:
+		 * Unknown TLV (0x1049, 6 bytes): 00 37 2a 00 01 20
+		 * Unknown TLV (0x1049, 23 bytes): 00 01 37 10 06 00 10 56 4e 43 34 4b 32 33 32 39 39 14 cb 19 7e 4a 29
+BSS e0:28:6d:c3:d9:cb(on wlx70f11c0b91af)
+	TSF: 34199314397 usec (0d, 09:29:59)
+	freq: 2437
+	beacon interval: 100 TUs
+	capability: ESS Privacy ShortPreamble ShortSlotTime RadioMeasure (0x1431)
+	signal: -58.00 dBm
+	last seen: 10023 ms ago
+	Information elements from Probe Response frame:
+	SSID: FRITZ!Box 7560 YG
+	Supported rates: 1.0* 2.0* 5.5* 11.0* 6.0* 9.0 12.0* 18.0 
+	DS Parameter set: channel 6
+	Country: CH	Environment: Indoor/Outdoor
+		Channels [1 - 13] @ 20 dBm
+	ERP: <no flags>
+	Extended supported rates: 24.0* 36.0 48.0 54.0 
+	BSS Load:
+		 * station count: 0
+		 * channel utilisation: 11/255
+		 * available admission capacity: 0 [*32us]
+	HT capabilities:
+		Capabilities: 0x1ad
+			RX LDPC
+			HT20
+			SM Power Save disabled
+			RX HT20 SGI
+			TX STBC
+			RX STBC 1-stream
+			Max AMSDU length: 3839 bytes
+			No DSSS/CCK HT40
+		Maximum RX AMPDU length 65535 bytes (exponent: 0x003)
+		Minimum RX AMPDU time spacing: 8 usec (0x06)
+		HT TX/RX MCS rate indexes supported: 0-23
+	HT operation:
+		 * primary channel: 6
+		 * secondary channel offset: no secondary
+		 * STA channel width: 20 MHz
+		 * RIFS: 1
+		 * HT protection: no
+		 * non-GF present: 0
+		 * OBSS non-GF present: 0
+		 * dual beacon: 0
+		 * dual CTS protection: 0
+		 * STBC beacon: 0
+		 * L-SIG TXOP Prot: 0
+		 * PCO active: 0
+		 * PCO phase: 0
+	Overlapping BSS scan params:
+		 * passive dwell: 20 TUs
+		 * active dwell: 10 TUs
+		 * channel width trigger scan interval: 300 s
+		 * scan passive total per channel: 200 TUs
+		 * scan active total per channel: 20 TUs
+		 * BSS width channel transition delay factor: 5
+		 * OBSS Scan Activity Threshold: 0.25 %
+	Extended capabilities:
+		 * HT Information Exchange Supported
+		 * Extended Channel Switching
+		 * TFS
+		 * WNM-Sleep Mode
+		 * TIM Broadcast
+		 * BSS Transition
+		 * Operating Mode Notification
+	WMM:	 * Parameter version 1
+		 * BE: CW 15-1023, AIFSN 3
+		 * BK: CW 15-1023, AIFSN 7
+		 * VI: CW 7-15, AIFSN 2, TXOP 3008 usec
+		 * VO: CW 3-7, AIFSN 2, TXOP 1504 usec
+	WPS:	 * Version: 1.0
+		 * Wi-Fi Protected Setup State: 2 (Configured)
+		 * Response Type: 3 (AP)
+		 * UUID: 091d74e1-9e77-14a9-3189-e0286dc3d9ca
+		 * Manufacturer: AVM
+		 * Model: FBox
+		 * Model Number: 0000
+		 * Serial Number: 0000
+		 * Primary Device Type: 6-0050f204-1
+		 * Device name: FBox
+		 * Config methods: PBC
+		 * RF Bands: 0x3
+		 * Unknown TLV (0x1049, 6 bytes): 00 37 2a 00 01 20
+	RSN:	 * Version: 1
+		 * Group cipher: CCMP
+		 * Pairwise ciphers: CCMP
+		 * Authentication suites: PSK
+		 * Capabilities: 1-PTKSA-RC 1-GTKSA-RC (0x0000)
+BSS ec:b1:d7:d5:f8:81(on wlx70f11c0b91af)
+	TSF: 303926256967 usec (3d, 12:25:26)
+	freq: 5180
+	beacon interval: 100 TUs
+	capability: ESS ShortPreamble ShortSlotTime (0x0421)
+	signal: 48.00 dBm
+	last seen: 488 ms ago
+	Information elements from Probe Response frame:
+	SSID: HP-Print-81-Officejet 4630
+	Supported rates: 1.0 2.0 5.5 6.0 9.0 11.0 12.0 18.0 
+	DS Parameter set: channel 6
+	ERP: <no flags>
+	Extended supported rates: 24.0 36.0 48.0 54.0 
+	WMM:	 * Parameter version 1
+		 * u-APSD
+		 * BE: CW 15-1023, AIFSN 3
+		 * BK: CW 15-1023, AIFSN 7
+		 * VI: CW 7-15, AIFSN 2, TXOP 3008 usec
+		 * VO: CW 3-7, AIFSN 2, TXOP 1504 usec

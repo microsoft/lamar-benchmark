@@ -54,10 +54,15 @@ coverage.xml
 *.mo
 *.pot
 
+
 # Django stuff:
 *.log
 local_settings.py
 db.sqlite3
+
+# NavVis test data.
+# *.log exception must be placed after *.log
+!scantools/tests/test_data/navvis_files/wifi/*.log
 
 # Flask stuff:
 instance/

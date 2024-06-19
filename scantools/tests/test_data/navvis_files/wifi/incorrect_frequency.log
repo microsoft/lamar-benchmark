@@ -1,0 +1,16 @@
+wlx9cefd5fffff8  Scan completed :
+          Cell 01 - Address: 82:2A:A8:9B:DA:E7
+                    Channel:36
+                    Frequency:5.18 Hz (Channel 36)
+                    Quality=40/70  Signal level=-70 dBm  
+                    Encryption key:on
+                    ESSID:"THA-MDE-CH"
+                    Bit Rates:6 Mb/s; 9 Mb/s; 12 Mb/s; 18 Mb/s; 24 Mb/s
+                              36 Mb/s; 48 Mb/s; 54 Mb/s
+                    Mode:Master
+                    Extra:tsf=000001d1e9081b9e
+                    Extra: Last beacon: 24ms ago
+                    IE: IEEE 802.11i/WPA2 Version 1
+                        Group Cipher : CCMP
+                        Pairwise Ciphers (1) : CCMP
+                        Authentication Suites (1) : 802.1x
