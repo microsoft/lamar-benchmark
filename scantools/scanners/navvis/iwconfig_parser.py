@@ -19,7 +19,6 @@ WifiMeasurement = collections.namedtuple(
         'time_offset_ms',
         'ssid'])
 
-
 def frequency_string_to_khz(frequency_str):
 
     data = frequency_str.split()
@@ -53,7 +52,7 @@ def parse_iwconfig(data):
                 'signal_level': r'Signal level=(-?\d{1,2}) dBm',
                 'frequency': r'Frequency:(\d{1,2}.\d{1,6}\s([ G|M|k]Hz))',
                 'time_offset': r'Extra: Last beacon: (\d{1,6})ms',
-                'ssid': r'ESSID:"(.{1,64})"'
+                'ssid': r'ESSID:"(.{1,32})"'
             }]
         }, {
             'wifi samples': [{
@@ -62,7 +61,7 @@ def parse_iwconfig(data):
                 'signal_level': r'signal: (-?\d{1,2}.\d{1,2}) dBm',
                 'frequency': r'freq: (\d{1,4})',
                 'time_offset': r'last seen: (\d{1,6}) ms',
-                'ssid': r'SSID: (.{1,64})'
+                'ssid': r'SSID: (.{1,32})'
             }]
         }]
 
