@@ -34,15 +34,18 @@ def test_parse_iwconfig():
         iwconfig_parser.IWConfigData(mac_address='82:2A:A8:9B:DA:E7',
                                      signal_strength_dbm=-70.0,
                                      frequency_khz=5180000,
-                                     time_offset_ms='24'),
+                                     time_offset_ms='24',
+                                     ssid='THA-MDE-CH'),
         iwconfig_parser.IWConfigData(mac_address='82:2A:DA:E7:A8:9B',
                                      signal_strength_dbm=-56.0,
                                      frequency_khz=2437000,
-                                     time_offset_ms='0'),
+                                     time_offset_ms='0',
+                                     ssid='OFT_E-READING'),
         iwconfig_parser.IWConfigData(mac_address='82:2A:A8:9A:DA:E7',
                                      signal_strength_dbm=56.0,
                                      frequency_khz=2437000,
-                                     time_offset_ms='5160')
+                                     time_offset_ms='5160',
+                                     ssid='THA-MDE-CH')
     ]
 
     with open(data_path, 'r') as f:
@@ -57,15 +60,18 @@ def test_parse_iwconfig():
         iwconfig_parser.IWConfigData(mac_address='5e:fb:3a:c4:1b:77',
                                      signal_strength_dbm=-72.0,
                                      frequency_khz=2437000,
-                                     time_offset_ms='0'),
+                                     time_offset_ms='0',
+                                     ssid='DIRECT-77-HP M255 LaserJet'),
         iwconfig_parser.IWConfigData(mac_address='e0:28:6d:c3:d9:cb',
                                      signal_strength_dbm=-58.0,
                                      frequency_khz=2437000,
-                                     time_offset_ms='10023'),
+                                     time_offset_ms='10023',
+                                     ssid='FRITZ!Box 7560 YG'),
         iwconfig_parser.IWConfigData(mac_address='ec:b1:d7:d5:f8:81',
                                      signal_strength_dbm=48.0,
                                      frequency_khz=5180000,
-                                     time_offset_ms='488')
+                                     time_offset_ms='488',
+                                     ssid='HP-Print-81-Officejet 4630')
     ]
 
     with open(data_path, 'r') as f:

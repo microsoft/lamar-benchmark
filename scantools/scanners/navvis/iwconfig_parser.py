@@ -1,12 +1,14 @@
 import collections
 
 from pytijo import parser
+import re
 
 IWConfigData = collections.namedtuple('IWConfigData',
                                       ['mac_address',
                                        'signal_strength_dbm',
                                        'frequency_khz',
-                                       'time_offset_ms'])
+                                       'time_offset_ms',
+                                       'ssid'])
 
 WifiMeasurement = collections.namedtuple(
     'WifiMeasurement', [
@@ -14,8 +16,8 @@ WifiMeasurement = collections.namedtuple(
         'mac_address',
         'signal_strength_dbm',
         'center_channel_freq_khz',
-        'time_offset_ms'])
-
+        'time_offset_ms',
+        'ssid'])
 
 def frequency_string_to_khz(frequency_str):
 
@@ -49,7 +51,8 @@ def parse_iwconfig(data):
                 'mac_address': r'Address:\s((?:[a-fA-F0-9]{2}[:|\-]?){6})',
                 'signal_level': r'Signal level=(-?\d{1,2}) dBm',
                 'frequency': r'Frequency:(\d{1,2}.\d{1,6}\s([ G|M|k]Hz))',
-                'time_offset': r'Extra: Last beacon: (\d{1,6})ms'
+                'time_offset': r'Extra: Last beacon: (\d{1,6})ms',
+                'ssid': r'ESSID:"(.{1,32})"'
             }]
         }, {
             'wifi samples': [{
@@ -57,7 +60,8 @@ def parse_iwconfig(data):
                 'mac_address': r'\s((?:[a-fA-F0-9]{2}[:|\-]?){6})',
                 'signal_level': r'signal: (-?\d{1,2}.\d{1,2}) dBm',
                 'frequency': r'freq: (\d{1,4})',
-                'time_offset': r'last seen: (\d{1,6}) ms'
+                'time_offset': r'last seen: (\d{1,6}) ms',
+                'ssid': r'SSID: (.{1,32})'
             }]
         }]
 
@@ -76,12 +80,14 @@ def parse_iwconfig(data):
         assert -127 <= float(wifi_sample['signal_level']) <= 127
         assert wifi_sample['frequency'] is not None
         assert wifi_sample['time_offset'] is not None
+        assert wifi_sample['ssid'] is not None
 
         wifi_sample = IWConfigData(
             wifi_sample['mac_address'],
             float(wifi_sample['signal_level']),
             frequency_string_to_khz(wifi_sample['frequency']),
-            wifi_sample['time_offset'])
+            wifi_sample['time_offset'],
+            wifi_sample['ssid'])
 
         parsed_samples.append(wifi_sample)
 

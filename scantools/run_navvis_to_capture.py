@@ -213,10 +213,12 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
         freq_khz = measurement.center_channel_freq_khz
         rssi_dbm = measurement.signal_strength_dbm
         time_offset_us = int(measurement.time_offset_ms) / 1_000
+        ssid = measurement.ssid
         if (timestamp_us, sensor_id) not in wifi_signals:
             wifi_signals[timestamp_us, sensor_id] = RecordWifi()
         wifi_signals[timestamp_us, sensor_id][mac_addr] = RecordWifiSignal(
-            frequency_khz=freq_khz, rssi_dbm=rssi_dbm, scan_time_start_us=(timestamp_us - time_offset_us)
+            frequency_khz=freq_khz, rssi_dbm=rssi_dbm, name=ssid,
+            scan_time_start_us=(timestamp_us - time_offset_us)
         )
 
     bluetooth_signals = RecordsBluetooth()
