@@ -1,7 +1,6 @@
 import collections
 
 from pytijo import parser
-import re
 
 IWConfigData = collections.namedtuple('IWConfigData',
                                       ['mac_address',
@@ -80,7 +79,8 @@ def parse_iwconfig(data):
         assert -127 <= float(wifi_sample['signal_level']) <= 127
         assert wifi_sample['frequency'] is not None
         assert wifi_sample['time_offset'] is not None
-        assert wifi_sample['ssid'] is not None
+        if wifi_sample['ssid'] is None:
+            continue
 
         wifi_sample = IWConfigData(
             wifi_sample['mac_address'],
