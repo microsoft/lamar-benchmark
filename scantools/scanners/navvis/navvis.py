@@ -678,7 +678,8 @@ class NavVis:
                                                        sample.mac_address,
                                                        sample.signal_strength_dbm,
                                                        sample.frequency_khz,
-                                                       sample.time_offset_ms)
+                                                       sample.time_offset_ms,
+                                                       sample.ssid)
 
                     wifi_measurements.append(wifi_measurement)
 
