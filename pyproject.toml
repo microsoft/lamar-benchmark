@@ -34,6 +34,8 @@ scantools = [
     "pyzbar-upright==0.1.8",
     "rawpy==0.19.1",
     "scipy==1.11.4",
+    "numpy==1.26.4",
+    "pillow==10.3.0",
 ]
 dev = [
     "pytest",
