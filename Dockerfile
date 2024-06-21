@@ -82,7 +82,7 @@ RUN python3 -m pip install --no-deps \
         rawpy==0.19.1 \
         scipy==1.11.4 \
         numpy==1.26.4 \
-        pillow 
+        pillow==10.3.0 
 
 RUN cd lamar && python3 -m pip install -e .[scantools] --no-deps
 WORKDIR /lamar
