@@ -68,7 +68,7 @@ T_w_i = sessions.trajectories[keys[0]]  # first pose, from sensor/rig to world
 
 :one: Install the core dependencies:
 
-- Python >= 3.9, we recommend to use the virtual environment of your choice.
+- Python 3.9 / 3.10, we recommend to use `venv` virtual environment.
 - Install in order: 
   * [Ceres 2.1](https://ceres-solver.googlesource.com/ceres-solver/+/refs/tags/2.1.0)
   * [COLMAP 3.8](https://colmap.github.io/install.html) built from source. Follow the instructions on the page, but **DO NOT install libceres-dev!!!** We just installed a correct version in the previous step.
