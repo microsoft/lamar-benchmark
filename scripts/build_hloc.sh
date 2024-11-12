@@ -4,7 +4,7 @@ root_folder=$(realpath $(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/..)
 source ${root_folder}/scripts/load_env.sh
 
 # Clone hloc.
-git clone --recursive https://github.com/cvg/Hierarchical-Localization/ hloc --depth=1
+git clone --recursive -b v1.4 https://github.com/cvg/Hierarchical-Localization/ hloc --depth=1
 cd hloc
 
 # Build the wheel.

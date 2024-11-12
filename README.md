@@ -66,32 +66,29 @@ T_w_i = sessions.trajectories[keys[0]]  # first pose, from sensor/rig to world
 
 ## Installation
 
-:one: Install the core dependencies:
-
-- Python 3.9 / 3.10, we recommend to use `venv` virtual environment.
-- Install in order: 
-  * [Ceres 2.1](https://ceres-solver.googlesource.com/ceres-solver/+/refs/tags/2.1.0)
-  * [COLMAP 3.8](https://colmap.github.io/install.html) built from source. Follow the instructions on the page, but **DO NOT install libceres-dev!!!** We just installed a correct version in the previous step.
-  * [hloc 1.4](https://github.com/cvg/Hierarchical-Localization) and its dependencies
-  * [pyceres](https://github.com/cvg/pyceres) built from source at tag v1.0.
-
-  or use the provided script:
+:one: Install the **core dependencies** using the provided script:
   ```bash
-  ./install_core_dependencies.sh
+  scripts/install_core_dependencies.sh
   ```
+Alternatively, you can install them manually in the following order:
+  * Python 3.9 / 3.10 (we recommend using a `venv` virtual environment).
+  * [Ceres Solver 2.1](https://ceres-solver.googlesource.com/ceres-solver/+/refs/tags/2.1.0)
+  * [Colmap 3.8](https://colmap.github.io/install.html) built from source. Note: **Do not install libceres-dev** as it was installed in the previous step.
+  * [hloc 1.4](https://github.com/cvg/Hierarchical-Localization) and its dependencies
+  * [pyceres v1.0](https://github.com/cvg/pyceres) built from source.
 
-:two: Install the LaMAR libraries and pull the remaining pip dependencies:
+:two: Install LaMAR libraries as editable packages:
 ```bash
 python -m pip install -e .
 ```
 
-:three: Optional: the processing pipeline additionally relies on heavier dependencies not required for benchmarking:
+:three: **Optional**: the processing pipeline additionally relies on heavier dependencies not required for benchmarking:
 
 - Pip dependencies: `python -m pip install -e .[scantools]`
 - [raybender](https://github.com/cvg/raybender) for raytracing
 - [pcdmeshing](https://github.com/cvg/pcdmeshing) for pointcloud meshing
 
-:four: Optional: if you wish to contribute, install the development tools as well:
+:four: **Optional**: if you wish to contribute, install the development tools as well:
 ```bash
 python -m pip install -e .[dev]
 ```

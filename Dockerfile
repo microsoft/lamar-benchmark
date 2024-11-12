@@ -82,7 +82,7 @@ RUN python3 -m pip install --no-deps \
         rawpy==0.19.1 \
         scipy==1.11.4 \
         numpy==1.26.4 \
-        pillow==10.3.0 
+        pillow==10.3.0
 
 RUN cd lamar && python3 -m pip install -e .[scantools] --no-deps
 WORKDIR /lamar
@@ -123,7 +123,7 @@ RUN apt-get install -y --no-install-recommends --no-install-suggests wget && \
 RUN cp -r /ceres_installed/* /usr/local/
 
 # Build pyceres.
-RUN git clone --depth 1 --recursive https://github.com/cvg/pyceres
+RUN git clone --depth 1 -b v1.0 --recursive https://github.com/cvg/pyceres
 RUN python3 -m pip install --upgrade pip
 RUN cd pyceres && \
     pip wheel . --no-deps -w dist-wheel -vv && \
@@ -168,13 +168,14 @@ RUN rm -rfv /tmp/*
 # Note: The dependencies listed in pyproject.toml also include pyceres, already
 # installed in previous Docker stages. Attempting to compile it in this stage
 # will lead to failure due to missing necessary development dependencies.
-# Therefore, we replicate the dependencies here, excluding pyceres
+# Therefore, we replicate the dependencies here, excluding pyceres.
 RUN python3 -m pip install --no-deps \
         h5py==3.10.0 \
         numpy==1.26.3 \
         torch>=1.1 \
         tqdm>=4.36.0 \
-        pycolmap==0.6.0
+        pycolmap==0.4.0 \
+        scikit-learn==1.5.2
 
 RUN cd /lamar && python3 -m pip install -e .  --no-deps
 WORKDIR /lamar
