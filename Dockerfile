@@ -123,7 +123,7 @@ RUN apt-get install -y --no-install-recommends --no-install-suggests wget && \
 RUN cp -r /ceres_installed/* /usr/local/
 
 # Build pyceres.
-RUN git clone --depth 1 -b v1.0 --recursive https://github.com/cvg/pyceres
+RUN git clone --depth 1 -b v2.3 --recursive https://github.com/cvg/pyceres
 RUN python3 -m pip install --upgrade pip
 RUN cd pyceres && \
     pip wheel . --no-deps -w dist-wheel -vv && \
