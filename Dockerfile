@@ -30,15 +30,15 @@ RUN apt-get update && \
         python3-setuptools
 
 # Build raybender.
-COPY docker/scripts/build_raybender.sh /tmp/
+COPY scripts/build_raybender.sh /tmp/
 RUN bash /tmp/build_raybender.sh && rm /tmp/build_raybender.sh
 
 # Build pcdmeshing.
-COPY docker/scripts/build_pcdmeshing.sh /tmp/
+COPY scripts/build_pcdmeshing.sh /tmp/
 RUN bash /tmp/build_pcdmeshing.sh && rm /tmp/build_pcdmeshing.sh
 
 # Build hloc.
-COPY docker/scripts/build_hloc.sh /tmp/
+COPY scripts/build_hloc.sh /tmp/
 RUN bash /tmp/build_hloc.sh && rm /tmp/build_hloc.sh
 
 #
