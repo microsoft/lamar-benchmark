@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-PS4='\033[1;96m$(date +%H:%M:%S)\033[0m '
-set -exo pipefail
+root_folder=$(realpath $(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/..)
+source ${root_folder}/scripts/load_env.sh
 
 # Clone hloc.
 git clone --recursive https://github.com/cvg/Hierarchical-Localization/ hloc --depth=1
