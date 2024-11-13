@@ -29,14 +29,20 @@ def run(capture: Capture, session_id: str, mesh_id: str = 'mesh',
     output_dir = capture.data_path(session_id)
     prefix = 'render'
     for ts, camera_id in tqdm(session.images.key_pairs()):
-        pose_cam2w = session.trajectories[ts, camera_id]
+        if session.rigs is None:
+            pose_cam2w = session.trajectories[ts, camera_id]
+        else:
+            rig_id = next(iter(session.trajectories[ts]))
+            rig_from_cam = session.rigs[rig_id, camera_id]
+            world_from_rig = session.trajectories[ts, rig_id]
+            pose_cam2w = world_from_rig * rig_from_cam
+
         camera = session.sensors[camera_id]
         rgb, depth_map = renderer.render_from_capture(pose_cam2w, camera)
 
         image_path = session.images[ts, camera_id]
-        depth_path = Path(prefix, image_path).as_posix() + '.depth.png'
-        render_id = f'{prefix}/{camera_id}'
-        depths[ts, render_id] = depth_path
+        depth_path = Path(prefix, image_path).with_suffix('.depth.png')
+        depths[ts, camera_id] = depth_path.as_posix()
 
         output_path = output_dir / depth_path
         output_path.parent.mkdir(exist_ok=True, parents=True)

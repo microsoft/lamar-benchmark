@@ -62,29 +62,60 @@ keys = session.trajectories.key_pairs()  # all (timestamp, sensor_or_rig_id)
 T_w_i = sessions.trajectories[keys[0]]  # first pose, from sensor/rig to world
 ```
 
-[More details are provided in the specification document.](./CAPTURE.md)
+[More details are provided in the specification document `CAPTURE.md`.](./CAPTURE.md)
 
 ## Installation
 
 :one: Install the core dependencies:
 
-- Python >= 3.8
-- [hloc](https://github.com/cvg/Hierarchical-Localization) and its dependencies, including [COLMAP](https://colmap.github.io/install.html) built from source
-- everything listed in `requirements/lamar.txt` installed with
-```bash
-python -m pip install -r requirements/lamar.txt
-```
+- Python >= 3.9
+- [hloc v1.4](https://github.com/cvg/Hierarchical-Localization) and its dependencies, including [COLMAP 3.8](https://colmap.github.io/install.html) built from source.
+- [pyceres](https://github.com/cvg/pyceres) built from source at tag v1.0.
 
-:two: Optional: the processing pipeline additionally relies on heavier dependencies not required for benchmarking:
-
-- Pip dependencies: `python -m pip install -r requirements/scantools.txt`
-- [raybender](https://github.com/cvg/raybender) for raytracing
-- [pcdmeshing](https://github.com/cvg/pcdmeshing) for pointcloud meshing
-
-:three: Optional: install `lamar` and `scantools` as libraries for external use via
+:two: Install the LaMAR libraries and pull the remaining pip dependencies:
 ```bash
 python -m pip install -e .
 ```
+
+:three: Optional: the processing pipeline additionally relies on heavier dependencies not required for benchmarking:
+
+- Pip dependencies: `python -m pip install -e .[scantools]`
+- [raybender](https://github.com/cvg/raybender) for raytracing
+- [pcdmeshing](https://github.com/cvg/pcdmeshing) for pointcloud meshing
+
+:four: Optional: if you wish to contribute, install the development tools as well:
+```bash
+python -m pip install -e .[dev]
+```
+
+## Docker images
+
+The Dockerfile provided in this project has multiple stages, two of which are:
+`scantools` and `lamar`.
+
+### Building the Docker Images
+
+You can build the Docker images for these stages using the following commands:
+```bash
+# Build the 'scantools' stage
+docker build --target scantools -t lamar:scantools -f Dockerfile ./
+
+# Build the 'lamar' stage
+docker build --target lamar -t lamar:lamar -f Dockerfile ./
+```
+
+### Pulling the Docker Images from GitHub Docker Registry
+
+Alternatively, if you don't want to build the images yourself, you can pull them
+from the GitHub Docker Registry using the following commands:
+```bash
+# Pull the 'scantools' image
+docker pull ghcr.io/microsoft/lamar-benchmark/scantools:latest
+
+# Pull the 'lamar' image
+docker pull ghcr.io/microsoft/lamar-benchmark/lamar:latest
+```
+
 
 ## Benchmark
 
@@ -208,6 +239,13 @@ Here are runfiles that could be handy for importing and exporting data:
 - `run_image_anonymization`: anonymize faces and license plates using the [Brighter.AI](https://brighter.ai/) API
 - `run_radio_anonymization`: anonymize radio signal IDs
 - `run_combine_sequences`: combine multiple sequence sessions into a single session
+- `run_qrcode_detection`: detect QR codes in images and store their poses
+
+## Raw data
+
+We also release the raw original data, as recorded by the devices (HoloLens, phones, NavVis scanner), with minimal post-processing.
+Like the evaluation data, the raw data is accessed through [the dataset page](https://lamar.ethz.ch/lamar/).
+[More details are provided in the specification document `RAW-DATA.md`.](./RAW-DATA.md)
 
 ## Release plan
 
@@ -216,7 +254,7 @@ Here are runfiles that could be handy for importing and exporting data:
 - [x] LaMAR evaluation data and benchmark
 - [x] Ground truthing pipeline
 - [x] iOS capture app
-- [ ] Full raw data
+- [x] Full raw data
 - [ ] Leaderboard and evaluation server
 - [ ] 3D dataset viewer
 

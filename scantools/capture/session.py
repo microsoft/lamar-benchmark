@@ -8,7 +8,7 @@ from .sensors import Sensors, Camera
 from .rigs import Rigs
 from .trajectories import Trajectories
 from .records import RecordsBluetooth, RecordsCamera, RecordsDepth, RecordsLidar, RecordsWifi
-from .proc import Proc
+from .proc import Proc, GlobalAlignment
 from .pose import Pose
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,6 @@ class Device(Enum):
 
 
 # TODO: inherit Rigs, Trajectories, and Records from a common abstract class
-# TODO: add proc/: mesh, depth rendering, alignment, overlap
 @dataclass
 class Session:
     sensors: Sensors
@@ -43,6 +42,7 @@ class Session:
     bt: Optional[RecordsBluetooth] = None
     proc: Optional[Proc] = None
     id: Optional[str] = None
+    origins: Optional[GlobalAlignment] = None
 
     data_dirname = 'raw_data'
     proc_dirname = 'proc'
@@ -52,7 +52,6 @@ class Session:
         all_devices = set(self.sensors.keys())
         if self.rigs is not None:
             assert len(self.sensors.keys() & self.rigs.keys()) == 0
-            assert len(self.rigs.sensor_ids - self.sensors.keys()) == 0
             all_devices |= self.rigs.keys()
         if self.trajectories is not None:
             assert len(self.trajectories.device_ids - all_devices) == 0
@@ -125,7 +124,7 @@ class Session:
             pose = T_rig2world * T_sensor2rig
         return pose
 
-    def save(self, path: Path):
+    def save(self, path: Path, overwrite : bool = True):
         path.mkdir(exist_ok=True, parents=True)
         for attr in fields(self):
             if attr.name == 'id':
@@ -134,7 +133,7 @@ class Session:
             if data is None:
                 continue
             filepath = path / self.filename(attr)
-            if filepath.exists() and attr.name != 'proc':
+            if not overwrite and filepath.exists() and attr.name != 'proc':
                 raise IOError(f'File exists: {filepath}')
             data.save(filepath)
         self.id = path.name

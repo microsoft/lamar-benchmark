@@ -13,7 +13,7 @@ from .scanners.navvis.camera_tiles import TileFormat
 from .capture import (
         Capture, Session, Sensors, create_sensor, Trajectories, Rigs, Pose,
         RecordsCamera, RecordsLidar, RecordBluetooth, RecordBluetoothSignal,
-        RecordsBluetooth, RecordWifi, RecordWifiSignal, RecordsWifi)
+        RecordsBluetooth, RecordWifi, RecordWifiSignal, RecordsWifi, GlobalAlignment)
 from .utils.misc import add_bool_arg
 from .utils.io import read_image, write_image
 
@@ -54,11 +54,18 @@ def convert_to_us(time_s):
 
 def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optional[str] = None,
         downsample_max_edge: int = None, upright: bool = True, export_as_rig: bool = False,
-        copy_pointcloud: bool = False):
+        export_trace: bool = False, copy_pointcloud: bool = False):
 
     if session_id is None:
         session_id = input_path.name
-    assert session_id not in capture.sessions
+
+    if export_trace:
+        if not export_as_rig:
+            logger.warning(
+                "Trace export is only valid when 'export_as_rig' is set to True. "
+                "Automatically setting 'export_as_rig' to True."
+            )
+        export_as_rig = True
 
     output_path = capture.data_path(session_id)
     nv = NavVis(input_path, output_path, tiles_format, upright)
@@ -67,8 +74,6 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
     camera_ids = nv.get_camera_indexes()
     tiles = nv.get_tiles()
 
-    num_frames = len(frame_ids)
-    num_cameras = len(camera_ids)
     num_tiles = nv.get_num_tiles()
 
     K = nv.get_camera_intrinsics()
@@ -136,6 +141,62 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
                     pose = get_pose(nv, upright, frame_id, camera_id, tile_id)
                     trajectory[timestamp_us, sensor_id] = pose
 
+    if export_trace:
+        # Add "trace" to the rig with identity pose.
+        rigs[rig_id, "trace"] = Pose()
+
+        # Add "trace" as a sensor.
+        sensors['trace'] = create_sensor('trace', name='Mapping path')
+
+        # Rig to CamHead. Rig is in cam0 frame.
+        cam0 = nv.get_cameras()["cam0"]
+        camhead_from_rig = Pose(r=cam0["orientation"], t=cam0["position"])
+
+        # Rig to IMU.
+        imu_pose = Pose(*nv.get_imu_pose())
+        if nv.get_device() == 'VLX':
+            imu_from_camhead = imu_pose.inverse()
+            imu_from_rig = imu_from_camhead * camhead_from_rig
+        elif nv.get_device() == 'M6':
+            imu_from_footprint = imu_pose.inverse()
+            world_from_camhead = Pose(*nv.get_camhead(frame_id=0))
+            world_from_footprint = Pose(*nv.get_footprint(frame_id=0))
+            footprint_from_camhead = world_from_footprint.inverse() * world_from_camhead
+            imu_from_rig = imu_from_footprint * footprint_from_camhead * camhead_from_rig
+
+        for trace in nv.get_trace():
+            timestamp_us = int(trace["nsecs"]) // 1_000  # convert from ns to us
+
+            # world_from_imu (trace.csv contains the IMU's poses)
+            qvec = np.array([trace["ori_w"], trace["ori_x"], trace["ori_y"], trace["ori_z"]], dtype=float)
+            tvec = np.array([trace["x"], trace["y"], trace["z"]], dtype=float)
+            world_from_imu = Pose(r=qvec, t=tvec)
+
+            # Apply the transformation to the first tile's pose.
+            # The rig is located in cam_id=0, tile_id=0.
+            tile0_pose = Pose(r=nv.get_tile_rotation(0), t=np.zeros(3)).inverse()
+
+            trace_pose = world_from_imu * imu_from_rig * tile0_pose
+
+            if upright:
+                # Images are rotated by 90 degrees clockwise.
+                # Rotate coordinates counter-clockwise: sin(-pi/2) = -1, cos(-pi/2) = 0
+                R_fix = np.array([
+                    [0, 1, 0],
+                    [-1, 0, 0],
+                    [0, 0, 1]
+                ])
+                R = trace_pose.R @ R_fix
+                trace_pose = Pose(r=R, t=trace_pose.t)
+                # Additionally, cam0 is (physically) mounted upside down on VLX.
+                if nv.get_device() == 'VLX':
+                    trace_pose = fix_vlx_extrinsics(trace_pose)
+
+            trajectory[timestamp_us, 'trace'] = trace_pose
+
+        # Sort the trajectory by timestamp.
+        trajectory = Trajectories(dict(sorted(trajectory.items())))
+
     pointcloud_id = 'point_cloud_final'
     sensors[pointcloud_id] = create_sensor('lidar', name='final NavVis point cloud')
     pointclouds = RecordsLidar()
@@ -152,10 +213,12 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
         freq_khz = measurement.center_channel_freq_khz
         rssi_dbm = measurement.signal_strength_dbm
         time_offset_us = int(measurement.time_offset_ms) / 1_000
+        ssid = measurement.ssid
         if (timestamp_us, sensor_id) not in wifi_signals:
             wifi_signals[timestamp_us, sensor_id] = RecordWifi()
         wifi_signals[timestamp_us, sensor_id][mac_addr] = RecordWifiSignal(
-            frequency_khz=freq_khz, rssi_dbm=rssi_dbm, scan_time_start_us=(timestamp_us - time_offset_us)
+            frequency_khz=freq_khz, rssi_dbm=rssi_dbm, name=ssid,
+            scan_time_start_us=(timestamp_us - time_offset_us)
         )
 
     bluetooth_signals = RecordsBluetooth()
@@ -170,9 +233,21 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
             bluetooth_signals[timestamp_us, sensor_id] = RecordBluetooth()
         bluetooth_signals[timestamp_us, sensor_id][id] = RecordBluetoothSignal(rssi_dbm=rssi_dbm)
 
+    # Read the NavVis origin.json file if present and use proc.GlobalAlignment to save it.
+    navvis_origin = None
+    if nv.load_origin():
+        origin_qvec, origin_tvec, origin_crs = nv.get_origin()
+        navvis_origin = GlobalAlignment()
+        navvis_origin[origin_crs, navvis_origin.no_ref] = (
+            Pose(r=origin_qvec, t=origin_tvec),
+            [],
+        )
+        logger.info("Loaded NavVis origin.json")
+
     session = Session(
         sensors=sensors, rigs=rigs, trajectories=trajectory,
-        images=images, pointclouds=pointclouds, wifi=wifi_signals, bt=bluetooth_signals)
+        images=images, pointclouds=pointclouds, wifi=wifi_signals, bt=bluetooth_signals, 
+        origins=navvis_origin)
     capture.sessions[session_id] = session
     capture.save(capture.path, session_ids=[session_id])
 
@@ -194,7 +269,8 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
     if copy_pointcloud:
         shutil.copy(str(nv.get_pointcloud_path()), str(output_path))
     else:
-        (output_path / pointcloud_filename).symlink_to(nv.get_pointcloud_path())
+        if not (output_path / pointcloud_filename).exists():
+            (output_path / pointcloud_filename).symlink_to(nv.get_pointcloud_path())
 
 
 if __name__ == '__main__':
@@ -206,6 +282,7 @@ if __name__ == '__main__':
     parser.add_argument('--downsample_max_edge', type=int, default=None)
     add_bool_arg(parser, 'upright', default=True)
     add_bool_arg(parser, 'export_as_rig', default=False)
+    add_bool_arg(parser, 'export_trace', default=False)
     parser.add_argument('--copy_pointcloud', action='store_true')
     args = parser.parse_args().__dict__
 

@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import List, Optional
 import argparse
 import numpy as np
+import shutil
 
 from . import logger
 from .capture import (
@@ -53,8 +54,8 @@ def run(capture: Capture, session_ids: List[str], seed: Optional[int] = 0):
                 for mac_addr, record in session.wifi[key].items():
                     mac_addr = anonymize_wifi_mac_addr(mac_addr, hex_mapping)
                     wifi[key][mac_addr] = record
-            # assert not (path / 'wifi_raw.txt').exists()
-            # shutil.move(path / 'wifi.txt', path / 'wifi_raw.txt')
+            assert not (path / 'wifi.backup.txt').exists()
+            shutil.move(path / 'wifi.txt', path / 'wifi.backup.txt')
             wifi.save(path / 'wifi.txt')
 
         if session.bt:
@@ -64,8 +65,8 @@ def run(capture: Capture, session_ids: List[str], seed: Optional[int] = 0):
                 for guid, record in session.bt[key].items():
                     guid = anonymize_bt_guid(guid, hex_mapping)
                     bt[key][guid] = record
-            # assert not (path / 'bt_raw.txt').exists()
-            # shutil.move(path / 'bt.txt', path / 'bt_raw.txt')
+            assert not (path / 'bt.backup.txt').exists()
+            shutil.move(path / 'bt.txt', path / 'bt.backup.txt')
             bt.save(path / 'bt.txt')
 
 

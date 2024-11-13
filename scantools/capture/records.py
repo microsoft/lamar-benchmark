@@ -276,3 +276,6 @@ class RecordsBluetooth(RecordsArray[RecordBluetooth]):
             records[timestamp, sensor_id] = <RecordBluetooth>
     """
     record_type = RecordBluetooth
+
+
+
