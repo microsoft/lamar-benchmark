@@ -100,7 +100,7 @@ class OverlapTracer:
         if is_self:
             keys_r, session_r, poses_r = keys_q, session_q, poses_q
 
-        overlap_matrix = np.full((len(keys_q), len(keys_r)), -1, np.float32)
+        overlap_matrix = np.full((len(keys_q), len(keys_r)), -1, dtype=np.float32)
         overlap_matrix[discard] = 0
 
         # cache the image poses as they might be compositions of rig poses
