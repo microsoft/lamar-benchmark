@@ -94,7 +94,7 @@ def pyramid_intersection_check(pyramid_points1, pyramid_points2, batch_size=5_00
             pyramid_points1[start_idx_N : end_idx_N])
         intersects[start_idx_N : end_idx_N, start_idx_M : end_idx_M] = ~(does_not_intersect1 | does_not_intersect2.T)
     if len(params) < 4:
-        for p in tqdm(params):
+        for p in params:
             _worker_fn(p)
     else:
         thread_map(_worker_fn, params, max_workers=num_threads)
@@ -130,7 +130,6 @@ def frustum_intersections(keys_q: List, session_q: Session, T_q: Optional[Trajec
                           keys_r: Optional[List] = None, session_r: Optional[Session] = None,
                           poses_r: Optional[Trajectories] = None, max_depth: float = 20.
                           ) -> np.ndarray:
-    logger.info("Computing frustum overlaps between %d keys_q and %d keys_r", len(keys_q), len(key_r) if keys_r else 0)
     frustums_q = pyramids_from_trajectory(keys_q, session_q, poses=T_q, max_depth=max_depth)
     if keys_r is None:
         frustums_r = frustums_q
