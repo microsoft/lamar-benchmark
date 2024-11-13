@@ -100,7 +100,6 @@ class OverlapTracer:
         if is_self:
             keys_r, session_r, poses_r = keys_q, session_q, poses_q
 
-        logger.info("Ray tracing for trajectory overlap between %d keys_q and %d keys_r", len(keys_q), len(keys_r))
         overlap_matrix = np.full((len(keys_q), len(keys_r)), -1, np.float32)
         overlap_matrix[discard] = 0
 
