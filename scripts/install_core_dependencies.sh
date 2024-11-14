@@ -17,4 +17,4 @@ sudo ${root_folder}/scripts/install_colmap.sh
 python3 -m pip install git+https://github.com/cvg/Hierarchical-Localization.git@v1.4
 
 # Pyceres.
-python3 -m pip install git+https://github.com/cvg/pyceres.git@v2.3
+python3 -m pip install git+https://github.com/cvg/pyceres.git@v1.0
