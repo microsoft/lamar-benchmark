@@ -147,4 +147,18 @@ class RetrievalFeatureExtraction(FeatureExtraction):
                 'preprocessing': {'resize_max': 640},
             }
         },
+        'cosplace': {
+            'name': 'cosplace',
+            'hloc': {
+                'model': {'name': 'cosplace'},
+                'preprocessing': {'resize_max': 640},
+            }
+        },
+        'openibl': {
+            'name': 'openibl',
+            'hloc': {
+                'model': {'name': 'openibl'},
+                'preprocessing': {'resize_max': 640},
+            }
+        }
     }
