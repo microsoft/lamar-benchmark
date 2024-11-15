@@ -64,8 +64,7 @@ RUN rm -rfv /tmp/*
 
 # Install pcdmeshing.
 COPY --from=builder /pcdmeshing/dist-wheel /tmp/dist-wheel
-RUN sudo apt-get install -y --no-install-recommends --no-install-suggests \
-        libmpfrc++-dev
+RUN apt-get install -y --no-install-recommends --no-install-suggests libmpfrc++-dev
 RUN cd /tmp && whl_path=$(cat dist-wheel/whl_path.txt) && python3 -m pip install $whl_path
 RUN rm -rfv /tmp/*
 
@@ -90,41 +89,23 @@ WORKDIR /lamar
 #
 # pyceres-builder stage.
 #
-FROM mcr.microsoft.com/mirror/docker/library/ubuntu:${UBUNTU_VERSION} AS pyceres-builder
+FROM common AS pyceres-builder
 
-# Prepare and empty machine for building.
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends --no-install-suggests \
-        git \
-        cmake \
-        ninja-build \
-        build-essential \
-        libeigen3-dev \
-        libgoogle-glog-dev \
-        libgflags-dev \
-        libgtest-dev \
-        libatlas-base-dev \
-        libsuitesparse-dev \
-        python-is-python3 \
-        python3-minimal \
-        python3-pip \
-        python3-dev \
-        python3-setuptools
+# Copy scripts
+COPY scripts/* /tmp/
 
-# Install Ceres.
-RUN apt-get install -y --no-install-recommends --no-install-suggests wget && \
-    wget "http://ceres-solver.org/ceres-solver-2.1.0.tar.gz" && \
-    tar zxf ceres-solver-2.1.0.tar.gz && \
-    mkdir ceres-build && \
-    cd ceres-build && \
-    cmake ../ceres-solver-2.1.0 -GNinja \
-        -DCMAKE_INSTALL_PREFIX=/ceres_installed && \
-    ninja install
-RUN cp -r /ceres_installed/* /usr/local/
+# Install Ceres Solver.
+COPY scripts/install_ceres_solver.sh /tmp/
+RUN bash /tmp/install_ceres_solver.sh
+
+# Install Colmap.
+COPY scripts/install_colmap.sh /tmp/
+RUN bash /tmp/install_colmap.sh
 
 # Build pyceres.
-RUN git clone --depth 1 -b v2.3 --recursive https://github.com/cvg/pyceres
+RUN git clone --depth 1 -b v1.0 --recursive https://github.com/cvg/pyceres
 RUN python3 -m pip install --upgrade pip
+RUN apt-get install -y --no-install-recommends --no-install-suggests python3-dev
 RUN cd pyceres && \
     pip wheel . --no-deps -w dist-wheel -vv && \
     whl_path=$(find dist-wheel/ -name "*.whl") && \
@@ -146,8 +127,8 @@ RUN apt-get update && \
         python3-minimal \
         python3-pip
 
-# Copy installed library in the builder stage.
-COPY --from=pyceres-builder /ceres_installed/ /usr/local/
+# Copy installed libraries in the builder stage.
+COPY --from=pyceres-builder /usr/local/ /usr/local/
 
 # Install pyceres.
 COPY --from=pyceres-builder /pyceres/dist-wheel /tmp/dist-wheel
