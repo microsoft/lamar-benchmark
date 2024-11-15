@@ -121,6 +121,32 @@ docker pull ghcr.io/microsoft/lamar-benchmark/scantools:latest
 docker pull ghcr.io/microsoft/lamar-benchmark/lamar:latest
 ```
 
+### Usage of docker images
+
+To use the `lamar` Docker image, you can follow these steps:
+
+1. **Set the `DATA_DIR` and `DOCKER_RUN` environment variables**:
+
+```bash
+export DATA_DIR=/path/to/data
+export DOCKER_RUN="docker run -it --rm --init -u $(id -u):$(id -g) -v ${DATA_DIR}:${DATA_DIR} lamar:lamar "
+```
+
+**Note**: replace `lamar:lamar` with `ghcr.io/microsoft/lamar-benchmark/lamar:latest`
+if you want to use the image from the GitHub Docker Registry.
+
+2. **Run the desired command inside the Docker container, for example**:
+
+```bash
+$DOCKER_RUN ls $DATA_DIR
+$DOCKER_RUN python pipelines/pipeline_navvis_rig.py --help
+```
+
+The `DOCKER_RUN` variable is a prefix to the command you would run if the code
+were installed locally. This ensures the command runs inside the Docker
+container. The `DATA_DIR` will be mounted as a volume representing the same
+folder on the local machine, and the user/group will match the local environment
+to avoid having the output as root.
 
 ## Benchmark
 
