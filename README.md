@@ -129,11 +129,11 @@ To use the `lamar` Docker image, you can follow these steps:
 
 ```bash
 export DATA_DIR=/path/to/data
-export DOCKER_RUN="docker run -it --rm --init -u $(id -u):$(id -g) -v ${DATA_DIR}:${DATA_DIR} lamar:lamar "
+export DOCKER_RUN="docker run -it --rm --init -u $(id -u):$(id -g) -v ${DATA_DIR}:${DATA_DIR} ghcr.io/microsoft/lamar-benchmark/lamar:latest "
 ```
 
-**Note**: replace `lamar:lamar` with `ghcr.io/microsoft/lamar-benchmark/lamar:latest`
-if you want to use the image from the GitHub Docker Registry.
+**Note**: replace `ghcr.io/microsoft/lamar-benchmark/lamar:latest` with
+`lamar:lamar` if you want to use the image you built locally.
 
 2. **Run the desired command inside the Docker container, for example**:
 
