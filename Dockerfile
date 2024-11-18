@@ -37,10 +37,6 @@ RUN bash /tmp/build_raybender.sh && rm /tmp/build_raybender.sh
 COPY scripts/build_pcdmeshing.sh /tmp/
 RUN bash /tmp/build_pcdmeshing.sh && rm /tmp/build_pcdmeshing.sh
 
-# Build hloc.
-COPY scripts/build_hloc.sh /tmp/
-RUN bash /tmp/build_hloc.sh && rm /tmp/build_hloc.sh
-
 #
 # Scantools stage.
 #
@@ -142,9 +138,7 @@ RUN rm -rfv /tmp/*
 FROM pyceres as lamar
 
 # Install hloc.
-COPY --from=builder /hloc/dist-wheel /tmp/dist-wheel
-RUN cd /tmp && whl_path=$(cat dist-wheel/whl_path.txt) && python3 -m pip install $whl_path
-RUN rm -rfv /tmp/*
+RUN python3 -m pip install git+https://github.com/cvg/Hierarchical-Localization.git@v1.4
 
 # Note: The dependencies listed in pyproject.toml also include pyceres, already
 # installed in previous Docker stages. Attempting to compile it in this stage
