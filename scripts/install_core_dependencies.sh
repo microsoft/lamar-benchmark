@@ -3,7 +3,7 @@
 root_folder=$(realpath $(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/..)
 source ${root_folder}/scripts/load_env.sh
 
-# Comment this line out if you want to use it inside docker.
+# Uncomment the following line if you want to use this script inside Docker.
 # apt-get update && apt-get install -y --no-install-recommends --no-install-suggests git python3 python3-dev python3-pip python-is-python3 sudo
 
 # Create external folder.
