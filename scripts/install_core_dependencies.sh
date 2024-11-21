@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 root_folder=$(realpath $(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/..)
 source ${root_folder}/scripts/load_env.sh
 
@@ -14,7 +16,7 @@ sudo ${root_folder}/scripts/install_ceres_solver.sh
 sudo ${root_folder}/scripts/install_colmap.sh
 
 # HLoc.
-python3 -m pip install git+https://github.com/cvg/Hierarchical-Localization.git@v1.4
+${root_folder}/scripts/install_hloc.sh
 
 # Pyceres.
 python3 -m pip install git+https://github.com/cvg/pyceres.git@v1.0

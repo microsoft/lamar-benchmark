@@ -138,7 +138,8 @@ RUN rm -rfv /tmp/*
 FROM pyceres as lamar
 
 # Install hloc.
-RUN python3 -m pip install git+https://github.com/cvg/Hierarchical-Localization.git@v1.4
+COPY scripts/install_hloc.sh /tmp/
+RUN bash /tmp/install_hloc.sh
 
 # Note: The dependencies listed in pyproject.toml also include pyceres, already
 # installed in previous Docker stages. Attempting to compile it in this stage
