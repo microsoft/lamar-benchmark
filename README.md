@@ -66,7 +66,7 @@ T_w_i = sessions.trajectories[keys[0]]  # first pose, from sensor/rig to world
 
 ## Installation
 
-:one: Install the **core dependencies** using the provided script:
+:one: Install the **core dependencies** using the provided script, tested on Ubuntu 22.04:
   ```bash
   scripts/install_core_dependencies.sh
   ```
@@ -75,7 +75,6 @@ Alternatively, you can install them manually in the following order:
   * [Ceres Solver 2.1](https://ceres-solver.googlesource.com/ceres-solver/+/refs/tags/2.1.0)
   * [Colmap 3.8](https://colmap.github.io/install.html) built from source. Note: **Do not install libceres-dev** as it was installed in the previous step.
   * [hloc 1.4](https://github.com/cvg/Hierarchical-Localization) and its dependencies
-  * [pyceres v1.0](https://github.com/cvg/pyceres) built from source.
 
 :two: Install LaMAR libraries as editable packages:
 ```bash

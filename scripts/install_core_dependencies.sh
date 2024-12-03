@@ -17,6 +17,3 @@ sudo ${root_folder}/scripts/install_colmap.sh
 
 # HLoc.
 ${root_folder}/scripts/install_hloc.sh
-
-# Pyceres.
-python3 -m pip install git+https://github.com/cvg/pyceres.git@v1.0
