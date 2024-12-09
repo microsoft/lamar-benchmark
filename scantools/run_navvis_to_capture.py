@@ -220,6 +220,8 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
             frequency_khz=freq_khz, rssi_dbm=rssi_dbm, name=ssid,
             scan_time_start_us=(timestamp_us - time_offset_us)
         )
+    sorted_wifi_signals = sorted(wifi_signals.items(), key=lambda item: item[0])
+    wifi_signals = RecordsWifi(sorted_wifi_signals)
 
     bluetooth_signals = RecordsBluetooth()
     sensor_id = 'bt_sensor'
@@ -232,6 +234,8 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
         if (timestamp_us, sensor_id) not in bluetooth_signals:
             bluetooth_signals[timestamp_us, sensor_id] = RecordBluetooth()
         bluetooth_signals[timestamp_us, sensor_id][id] = RecordBluetoothSignal(rssi_dbm=rssi_dbm)
+    sorted_bluetooth_signals = sorted(bluetooth_signals.items(), key=lambda item: item[0])
+    bluetooth_signals = RecordsBluetooth(sorted_bluetooth_signals)
 
     # Read the NavVis origin.json file if present and use proc.GlobalAlignment to save it.
     navvis_origin = None
