@@ -163,9 +163,7 @@ def run(capture: Capture, session_ids: List[str], skip: int = None,
                 if ts not in timestamps:
                     continue
                 rpath = Path(session_id) / session.depths[ts, cam_id]
-                depth_prefix, *cam_id = cam_id.split('/')
-                cam_id = '/'.join(cam_id)
-                depths[ts, depth_prefix+'/'+new_sensor_ids[cam_id]] = str(rpath)
+                depths[ts, new_sensor_ids[cam_id]] = str(rpath)
 
         # Radios
         if session.wifi is not None:
