@@ -1,9 +1,12 @@
 from pathlib import Path
-from typing import List, Tuple, Callable
-from collections import defaultdict
+from typing import Any, Dict, List, Tuple, Callable
 import numpy as np
 
 import pycolmap
+try:
+    import poselib
+except ImportError:
+    poselib = None
 
 from scantools.capture import Camera, Pose, Trajectories
 from scantools.proc.alignment.image_matching import get_keypoints, get_matches
@@ -14,8 +17,6 @@ KeyType = Tuple[int, str]
 def recover_matches_2d3d(query: str, ref_key_names: List[Tuple[KeyType, str]],
                          mapping, query_features: Path, match_file: Path):
     (p2d,), (noise,) = get_keypoints(query_features, [query])
-    p2d_to_p3d = defaultdict(list)
-    num_matches = 0
 
     if len(ref_key_names) == 0:
         ref_keys = ref_names = []
@@ -29,32 +30,30 @@ def recover_matches_2d3d(query: str, ref_key_names: List[Tuple[KeyType, str]],
         'indices': [np.empty((0,), int)],
         'node_ids_ref': [np.empty((0, 2), object)]
     }
+    p2d_to_p3d = set()
     for idx, (ref_key, matches) in enumerate(zip(ref_keys, all_matches)):
         if len(matches) == 0:
             continue
         valid, p3ds, p3d_ids = mapping.get_points3D(ref_key, matches[:, 1])
         matches = matches[valid]
-        num_matches += len(matches)
 
-        p2d_q = []
-        p3d = []
-        indices = []
+        p2d_ids = []
+        match_indices = []
         node_ids_ref = []
-        for (i, j), p3d_id, xyz in zip(matches, p3d_ids, p3ds):
-            # avoid duplicate observations
-            if p3d_id != -1 and p3d_id in p2d_to_p3d[i]:
+        for match_idx, ((i, j), p3d_id) in enumerate(zip(matches, p3d_ids)):
+            if p3d_id != -1 and (i, p3d_id) in p2d_to_p3d:
+                # Avoid duplicate observations.
                 continue
-            p2d_to_p3d[i].append(p3d_id)
-            p2d_q.append(p2d[i])
-            p3d.append(xyz)
-            indices.append(idx)
+            p2d_to_p3d.add((i, p3d_id))
+            p2d_ids.append(i)
+            match_indices.append(match_idx)
             node_ids_ref.append((ref_key, j))
-        if len(p2d_q) == 0:
+        if len(p2d_ids) == 0:
             continue
 
-        ret['kp_q'].append(np.array(p2d_q))
-        ret['p3d'].append(np.array(p3d))
-        ret['indices'].append(np.array(indices))
+        ret['kp_q'].append(p2d[p2d_ids])
+        ret['p3d'].append(p3ds[match_indices])
+        ret['indices'].append(np.full(len(match_indices), idx))
         ret['node_ids_ref'].append(np.array(node_ids_ref, dtype=object))
     ret = {k: np.concatenate(v, 0) for k, v in ret.items()}
 
@@ -64,26 +63,39 @@ def recover_matches_2d3d(query: str, ref_key_names: List[Tuple[KeyType, str]],
 def estimate_camera_pose(query: str, camera: Camera,
                          ref_key_names: List[Tuple[KeyType, str]],
                          recover_matches: Callable,
-                         pnp_error_multiplier: float,
-                         return_covariance: bool) -> Pose:
+                         config: Dict[str, Any],
+                         return_covariance: bool) -> Tuple[Pose, Dict[str, Any]]:
     matches_2d3d = recover_matches(query, ref_key_names)
     keypoint_noise = matches_2d3d['keypoint_noise']
+    points_2d = matches_2d3d['kp_q']
+    points_3d = matches_2d3d['p3d']
+    inlier_threshold = config['pnp_error_multiplier'] * keypoint_noise
 
-    ret = pycolmap.absolute_pose_estimation(
-        matches_2d3d['kp_q'], matches_2d3d['p3d'],
-        camera.asdict, pnp_error_multiplier * keypoint_noise,
-        return_covariance=return_covariance)
-
-    if ret['success']:
-        if return_covariance:
-            ret['covariance'] *= keypoint_noise ** 2
-            # the covariance returned by pycolmap is on the left side,
-            # which is the right side of the inverse.
-            pose = Pose(*Pose(ret['qvec'], ret['tvec']).inv.qt, ret['covariance'])
+    if config['estimator'] == 'pycolmap':
+        ret = pycolmap.absolute_pose_estimation(
+            points_2d, points_3d, camera.asdict, inlier_threshold,
+            return_covariance=return_covariance)
+        if ret['success']:
+            if return_covariance:
+                ret['covariance'] *= keypoint_noise ** 2
+                # the covariance returned by pycolmap is on the left side,
+                # which is the right side of the inverse.
+                pose = Pose(*Pose(ret['qvec'], ret['tvec']).inv.qt, ret['covariance'])
+            else:
+                pose = Pose(ret['qvec'], ret['tvec']).inv
         else:
-            pose = Pose(ret['qvec'], ret['tvec']).inv
+            pose = None
+    elif config['estimator'] == 'poselib':
+        if poselib is None:
+            raise ImportError('Could not import PoseLib - did you forget to install it?')
+        if return_covariance:
+            raise ValueError('PoseLib does not support return_covariance=True')
+        pose, ret = poselib.estimate_absolute_pose(
+            points_2d, points_3d, camera.asdict,
+            {'max_reproj_error': inlier_threshold}, {})
+        pose = Pose(pose.q, pose.t).inv
     else:
-        pose = None
+        raise NotImplementedError(f'Unknown estimator: {config["estimator"]}')
 
     ret = {**ret, 'matches_2d3d_list': [matches_2d3d]}
     return pose, ret
@@ -92,7 +104,8 @@ def estimate_camera_pose(query: str, camera: Camera,
 def estimate_camera_pose_rig(queries: List[str], cameras: List[Camera], T_cams2rig: List[Pose],
                              refs_key_names: List[List[Tuple[KeyType, str]]],
                              recover_matches: Callable,
-                             pnp_error_multiplier: float, return_covariance: bool) -> Pose:
+                             config: Dict[str, Any],
+                             return_covariance: bool) -> Tuple[Pose, Dict[str, Any]]:
     matches_2d3d_list = []
     keypoint_noises = []
     for query, ref_key_names in zip(queries, refs_key_names):
@@ -100,29 +113,46 @@ def estimate_camera_pose_rig(queries: List[str], cameras: List[Camera], T_cams2r
         matches_2d3d_list.append(matches_2d3d)
         keypoint_noises.append(matches_2d3d['keypoint_noise'])
 
-    p2d_m_list = [m['kp_q'] for m in matches_2d3d_list]
-    p3d_m_list = [m['p3d'] for m in matches_2d3d_list]
+    points_2d = [m['kp_q'] for m in matches_2d3d_list]
+    points_3d = [m['p3d'] for m in matches_2d3d_list]
     camera_dicts = [camera.asdict for camera in cameras]
     rel_poses = [T.inverse() for T in T_cams2rig]
     qvecs = [p.qvec for p in rel_poses]
     tvecs = [p.t for p in rel_poses]
     keypoint_noise = np.mean(keypoint_noises)
+    inlier_threshold = config['pnp_error_multiplier'] * keypoint_noise
 
-    ret = pycolmap.rig_absolute_pose_estimation(
-        p2d_m_list, p3d_m_list, camera_dicts, qvecs,
-        tvecs, pnp_error_multiplier * keypoint_noise,
-        return_covariance=return_covariance)
-
-    if ret['success']:
-        if return_covariance:
-            ret['covariance'] *= keypoint_noise ** 2
-            # the covariance returned by pycolmap is on the left side,
-            # which is the right side of the inverse.
-            pose = Pose(*Pose(ret['qvec'], ret['tvec']).inv.qt, ret['covariance'])
+    if config['estimator'] == 'pycolmap':
+        ret = pycolmap.rig_absolute_pose_estimation(
+            points_2d, points_3d, camera_dicts, qvecs, tvecs, inlier_threshold,
+            return_covariance=return_covariance)
+        if ret['success']:
+            if return_covariance:
+                ret['covariance'] *= keypoint_noise ** 2
+                # the covariance returned by pycolmap is on the left side,
+                # which is the right side of the inverse.
+                pose = Pose(*Pose(ret['qvec'], ret['tvec']).inv.qt, ret['covariance'])
+            else:
+                pose = Pose(ret['qvec'], ret['tvec']).inv
         else:
-            pose = Pose(ret['qvec'], ret['tvec']).inv
+            pose = None
+    elif config['estimator'] == 'poselib':
+        if poselib is None:
+            raise ImportError('Could not import PoseLib - did you forget to install it?')
+        if return_covariance:
+            raise ValueError('PoseLib does not support return_covariance=True')
+        rel_poses_poselib = []
+        for q, t in zip(qvecs, tvecs):
+            p = poselib.CameraPose()
+            p.q = q
+            p.t = t
+            rel_poses_poselib.append(p)
+        pose, ret = poselib.estimate_generalized_absolute_pose(
+            points_2d, points_3d, rel_poses_poselib, camera_dicts,
+            {'max_reproj_error': inlier_threshold}, {})
+        pose = Pose(pose.q, pose.t).inv
     else:
-        pose = None
+        raise NotImplementedError(f'Unknown estimator: {config["estimator"]}')
 
     ret = {**ret, 'matches_2d3d_list': matches_2d3d_list}
     return pose, ret
