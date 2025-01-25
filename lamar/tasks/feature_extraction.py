@@ -34,6 +34,18 @@ class FeatureExtraction:
                 },
             },
         },
+        'dumbpoint': {
+            'name': 'dumbpoint',
+            'hloc': {
+                'model': {
+                    'name': 'dumbpoint',
+                },
+                'preprocessing': {
+                    'grayscale': True,
+                    'resize_max': 1024,
+                },
+            },
+        },
         'r2d2': {
             'name': 'r2d2',
             'hloc': {
@@ -158,6 +170,13 @@ class RetrievalFeatureExtraction(FeatureExtraction):
             'name': 'openibl',
             'hloc': {
                 'model': {'name': 'openibl'},
+                'preprocessing': {'resize_max': 640},
+            }
+        },
+        'salad': {
+            'name': 'salad',
+            'hloc': {
+                'model': {'name': 'salad'},
                 'preprocessing': {'resize_max': 640},
             }
         }
