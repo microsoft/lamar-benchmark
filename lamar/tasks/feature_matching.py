@@ -2,7 +2,7 @@ import logging
 from typing import Optional
 from copy import deepcopy
 
-from hloc import match_features
+from hloc import match_features, match_dense
 
 from .feature_extraction import FeatureExtraction
 from .pair_selection import PairSelection
@@ -23,6 +23,22 @@ class FeatureMatchingPaths:
 
 class FeatureMatching:
     methods = {
+        'loftr': {
+            'name': 'loftr',
+            'hloc': {
+                'model': {
+                    'name': 'loftr',
+                    'weights': 'outdoor'
+                },
+                'preprocessing': {
+                    'grayscale': True,
+                    'resize_max': 1024,
+                    'dfactor': 8
+                },
+                'max_error': 2,  # max error for assigned keypoints (in px)
+                'cell_size': 8,  # size of quantization patch (max 1 kp/patch)
+            }
+        },
         'superglue': {
             'name': 'superglue',
             'hloc': {
@@ -74,43 +90,57 @@ class FeatureMatching:
 
     def __init__(self, outputs, capture, query_id, ref_id, config,
                  pair_selection: PairSelection,
-                 extraction: FeatureExtraction,
-                 extraction_ref: Optional[FeatureExtraction] = None,
                  overwrite=False):
-        extraction_ref = extraction_ref or extraction
-        if extraction.config['name'] != extraction_ref.config['name']:
-            raise ValueError('Matching two different features: '
-                             f'{extraction.config} vs {extraction_ref.config}')
-        assert query_id == extraction.session_id
-        assert query_id == pair_selection.query_id
-        assert ref_id == extraction_ref.session_id
-        assert ref_id == pair_selection.ref_id
-
-        self.config = config = {
-            **deepcopy(config),
-            'features': extraction.config,  # detect upstream changes
-            # do not include the pairs so the same file can be reused
-        }
+        self.config = config = deepcopy(config)
         self.query_id = query_id
         self.ref_id = ref_id
-        self.extraction = extraction
-        self.extraction_ref = extraction_ref
         self.pair_selection = pair_selection
-        self.paths = FeatureMatchingPaths(outputs, config, query_id, ref_id)
+        self.extraction = FeatureExtraction(outputs, capture, query_id, config['extraction'])
+        self.extraction_ref = FeatureExtraction(outputs, capture, ref_id, config['extraction'])
+        self.paths = FeatureMatchingPaths(outputs, {**config['matching'], 'features': self.extraction.config}, query_id, ref_id)
         self.paths.workdir.mkdir(parents=True, exist_ok=True)
 
-        logger.info('Matching local features with %s for sessions (%s, %s).',
-                    config['name'], query_id, ref_id)
-        if not same_configs(config, self.paths.config):
-            logger.warning('Existing matches will be overwritten.')
-            overwrite = True
-        match_features.main(
-            config['hloc'],
-            pair_selection.paths.pairs_hloc,
-            extraction.paths.features,
-            matches=self.paths.matches,
-            features_ref=extraction_ref.paths.features,
-            overwrite=overwrite,
-        )
+        if 'hloc' in config['extraction']:
+            logger.info('Matching local features with %s for sessions (%s, %s).',
+                        config.matching['name'], query_id, ref_id)
+            if not same_configs(config, self.paths.config):
+                logger.warning('Existing matches will be overwritten.')
+                overwrite = True
+            match_features.main(
+                config['matching']['hloc'],
+                pair_selection.paths.pairs_hloc,
+                self.extraction.paths.features,
+                matches=self.paths.matches,
+                features_ref=self.extraction_ref.paths.features,
+                overwrite=overwrite,
+            )
+            write_config(config, self.paths.config)
+        else:
+            logger.info('Matching dense features with %s for sessions (%s, %s).',
+                        config['matching']['name'], query_id, ref_id)
+            if not same_configs(config, self.paths.config):
+                logger.warning('Existing matches will be overwritten.')
+                overwrite = True
+            if query_id == ref_id:
+                match_dense.main(
+                    config['matching']['hloc'],
+                    pair_selection.paths.pairs_hloc,
+                    self.extraction.image_root,
+                    matches=self.paths.matches,
+                    features=self.extraction.paths.features,
+                    max_kps=8192,
+                    overwrite=overwrite,
+                )
+            else:
+                match_dense.main(
+                    config['matching']['hloc'],
+                    pair_selection.paths.pairs_hloc,
+                    self.extraction.image_root,
+                    matches=self.paths.matches,
+                    features=self.extraction.paths.features,
+                    features_ref=self.extraction_ref.paths.features,
+                    max_kps=None,
+                    overwrite=overwrite,
+                )
+            write_config(config, self.paths.config)
 
-        write_config(config, self.paths.config)

@@ -85,28 +85,28 @@ def run(outputs: Path,
             capture, query_id, query_list, sequence_length_seconds)
         image_keys = keys_from_chunks(query_chunks)
 
-    extraction_map = FeatureExtraction(outputs, capture, ref_id, configs['extraction'])
     pairs_map = PairSelection(outputs, capture, ref_id, ref_id, configs['pairs_map'])
+    # extraction_map = FeatureExtraction(outputs, capture, ref_id, configs['extraction'])
     matching_map = FeatureMatching(
-        outputs, capture, ref_id, ref_id, configs['matching'], pairs_map, extraction_map)
+        outputs, capture, ref_id, ref_id, {'extraction': configs['extraction'], 'matching': configs['matching']}, pairs_map)
 
     mapping = Mapping(
-        configs['mapping'], outputs, capture, ref_id, extraction_map, matching_map)
+        configs['mapping'], outputs, capture, ref_id, matching_map.extraction_ref)
 
-    extraction_query = FeatureExtraction(
-        outputs, capture, query_id, configs['extraction'], image_keys)
+    # extraction_query = FeatureExtraction(
+    #     outputs, capture, query_id, configs['extraction'], image_keys)
 
     if is_sequential:
         query_list, query_chunks = avoid_duplicate_keys_in_chunks(
             session_q, query_list, query_chunks)
         T_c2w_gt = session_q.proc.alignment_trajectories
-        chunk_alignment = ChunkAlignment(
-            configs, outputs, capture, query_id, extraction_query, mapping, query_chunks,
-            sequence_length_seconds)
-        if T_c2w_gt:
-            results = chunk_alignment.evaluate(T_c2w_gt, query_list)
-        else:
-            results = str(chunk_alignment.paths.poses)
+        # chunk_alignment = ChunkAlignment(
+        #     configs, outputs, capture, query_id, extraction_query, mapping, query_chunks,
+        #     sequence_length_seconds)
+        # if T_c2w_gt:
+        #     results = chunk_alignment.evaluate(T_c2w_gt, query_list)
+        # else:
+        #     results = str(chunk_alignment.paths.poses)
     else:
         T_c2w_gt = session_q.proc.alignment_trajectories
         if T_c2w_gt and is_rig and not do_rig:
@@ -115,11 +115,11 @@ def run(outputs: Path,
             outputs, capture, query_id, ref_id, configs['pairs_loc'], query_list,
             query_poses=T_c2w_gt)
         matching_query = FeatureMatching(
-            outputs, capture, query_id, ref_id, configs['matching_query'],
-            pairs_loc, extraction_query, extraction_map)
+            outputs, capture, query_id, ref_id, {'extraction': configs['extraction'], 'matching': configs['matching_query']},
+            pairs_loc)
         pose_estimation = PoseEstimation(
             configs['poses'], outputs, capture, query_id,
-            extraction_query, matching_query, mapping, query_list)
+            matching_query.extraction, matching_query, mapping, query_list)
         if T_c2w_gt:
             results = pose_estimation.evaluate(T_c2w_gt)
         else:

@@ -20,6 +20,9 @@ class FeatureExtractionPaths:
 
 class FeatureExtraction:
     methods = {
+        'anypoint': {
+            'name': 'anypoint'
+        },
         'superpoint': {
             'name': 'superpoint',
             'hloc': {
