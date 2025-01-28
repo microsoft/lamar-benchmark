@@ -71,7 +71,7 @@ class PoseEstimation:
                  matching: FeatureMatching,
                  mapping: Mapping,
                  query_keys: list = None,
-                 parallel: bool = True,
+                 parallel: bool = False,
                  return_covariance: bool = False,
                  override_workdir_root: Path = None):
         if extraction.config['name'] != mapping.extraction.config['name']:
