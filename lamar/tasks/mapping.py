@@ -108,11 +108,8 @@ class Triangulation(Mapping):
         )
 
     def get_points3D(self, key, point2D_indices):
-        image = self.reconstruction.images[self.key2imageid[key]]
-        valid = []
-        xyz = []
-        ids = []
         if key not in self.points3d_cache:
+            image = self.reconstruction.images[self.key2imageid[key]]
             ids = []
             xyz = []
             for p2d in image.points2D:
@@ -124,6 +121,9 @@ class Triangulation(Mapping):
                     xyz.append([np.nan, np.nan, np.nan])
             self.points3d_cache[key] = (np.array(ids), np.array(xyz))
         ids, xyz = self.points3d_cache[key]
+        if len(ids) == 0:
+            # Not registered.
+            return np.array([], bool), [], []
         valid = ids[point2D_indices] != -1
         return valid, xyz[point2D_indices][valid], ids[point2D_indices][valid]
 
