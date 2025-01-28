@@ -102,7 +102,7 @@ class FeatureMatching:
 
         if 'hloc' in config['extraction']:
             logger.info('Matching local features with %s for sessions (%s, %s).',
-                        config.matching['name'], query_id, ref_id)
+                        config['matching']['name'], query_id, ref_id)
             if not same_configs(config, self.paths.config):
                 logger.warning('Existing matches will be overwritten.')
                 overwrite = True
@@ -121,7 +121,9 @@ class FeatureMatching:
             if not same_configs(config, self.paths.config):
                 logger.warning('Existing matches will be overwritten.')
                 overwrite = True
+                print("IIIIII")
             if query_id == ref_id:
+                return
                 match_dense.main(
                     config['matching']['hloc'],
                     pair_selection.paths.pairs_hloc,

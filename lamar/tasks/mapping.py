@@ -24,7 +24,7 @@ class MappingPaths:
         self.root = root
         self.workdir = root / 'mapping' / session_id / config['name'] / config['features']['name']
         if config['name'] == 'triangulation':
-            self.workdir /= Path(config['pairs']['name'], config['matches']['name'])
+            self.workdir /= Path(config['pairs']['name'], config['matches']['matching']['name'])
             self.sfm_empty = self.workdir / 'sfm_empty'
         self.sfm = self.workdir / 'sfm'
         self.config = self.workdir / 'configuration.json'
@@ -94,6 +94,7 @@ class Triangulation(Mapping):
             self.name2key[image.name]: image.image_id
             for image in self.reconstruction.images.values()
         }
+        self.points3d_cache = {}
 
     def run(self, capture):
         run_capture_to_empty_colmap.run(capture, [self.session_id], self.paths.sfm_empty)
@@ -111,14 +112,20 @@ class Triangulation(Mapping):
         valid = []
         xyz = []
         ids = []
-        if len(image.points2D) > 0:
-            for idx in point2D_indices:
-                p = image.points2D[idx]
-                valid.append(p.has_point3D())
-                if valid[-1]:
-                    ids.append(p.point3D_id)
+        if key not in self.points3d_cache:
+            ids = []
+            xyz = []
+            for p2d in image.points2D:
+                if p2d.has_point3D():
+                    ids.append(p2d.point3D_id)
                     xyz.append(self.reconstruction.points3D[ids[-1]].xyz)
-        return np.array(valid, bool), xyz, ids
+                else:
+                    ids.append(-1)
+                    xyz.append([np.nan, np.nan, np.nan])
+            self.points3d_cache[key] = (np.array(ids), np.array(xyz))
+        ids, xyz = self.points3d_cache[key]
+        valid = ids[point2D_indices] != -1
+        return valid, xyz[point2D_indices][valid], ids[point2D_indices][valid]
 
 
 class MeshLifting(Mapping):

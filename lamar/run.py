@@ -91,7 +91,7 @@ def run(outputs: Path,
         outputs, capture, ref_id, ref_id, {'extraction': configs['extraction'], 'matching': configs['matching']}, pairs_map)
 
     mapping = Mapping(
-        configs['mapping'], outputs, capture, ref_id, matching_map.extraction_ref)
+        configs['mapping'], outputs, capture, ref_id, matching_map.extraction_ref, matching_map)
 
     # extraction_query = FeatureExtraction(
     #     outputs, capture, query_id, configs['extraction'], image_keys)
