@@ -121,9 +121,7 @@ class FeatureMatching:
             if not same_configs(config, self.paths.config):
                 logger.warning('Existing matches will be overwritten.')
                 overwrite = True
-                print("IIIIII")
             if query_id == ref_id:
-                return
                 match_dense.main(
                     config['matching']['hloc'],
                     pair_selection.paths.pairs_hloc,
