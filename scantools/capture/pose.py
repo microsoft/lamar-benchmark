@@ -103,6 +103,15 @@ class Pose:
                            [-ty, tx, 0]])
         return np.block([[self.R, np.zeros((3, 3))], [skew_t@self.R, self.R]])
 
+    @cached_property
+    def adjoint_inv(self) -> np.ndarray:
+        R_inv = self.R.transpose()
+        tx, ty, tz = self.t
+        skew_t = np.array([[0, -tz, ty],
+                           [tz, 0, -tx],
+                           [-ty, tx, 0]])
+        return np.block([[R_inv, np.zeros((3, 3))], [-R_inv @ skew_t, R_inv]])
+
     def to_4x4mat(self) -> np.ndarray:
         T = np.hstack((self.R, self.t[:, None]))
         T = np.vstack((T, (0, 0, 0, 1)))
@@ -116,7 +125,7 @@ class Pose:
         covar = self.covar
         if covar is not None:
             # here we assume that the noise is applied on the right
-            covar = self.adjoint @ covar @ self.adjoint.T
+            covar = self.adjoint_inv @ covar @ self.adjoint_inv.T
         return Pose(r_inv, t_inv, covar)
 
     def inverse(self) -> 'Pose':
