@@ -66,24 +66,28 @@ T_w_i = sessions.trajectories[keys[0]]  # first pose, from sensor/rig to world
 
 ## Installation
 
-:one: Install the core dependencies:
+:one: Install the **core dependencies** using the provided script, tested on Ubuntu 22.04:
+  ```bash
+  scripts/install_core_dependencies.sh
+  ```
+Alternatively, you can install them manually in the following order:
+  * Python 3.9 / 3.10 (we recommend using a `venv` virtual environment).
+  * [Ceres Solver 2.1](https://ceres-solver.googlesource.com/ceres-solver/+/refs/tags/2.1.0)
+  * [Colmap 3.8](https://colmap.github.io/install.html) built from source. Note: **Do not install libceres-dev** as it was installed in the previous step.
+  * [hloc 1.4](https://github.com/cvg/Hierarchical-Localization) and its dependencies
 
-- Python >= 3.9
-- [hloc v1.4](https://github.com/cvg/Hierarchical-Localization) and its dependencies, including [COLMAP 3.8](https://colmap.github.io/install.html) built from source.
-- [pyceres](https://github.com/cvg/pyceres) built from source at tag v1.0.
-
-:two: Install the LaMAR libraries and pull the remaining pip dependencies:
+:two: Install LaMAR libraries as editable packages:
 ```bash
 python -m pip install -e .
 ```
 
-:three: Optional: the processing pipeline additionally relies on heavier dependencies not required for benchmarking:
+:three: **Optional**: the processing pipeline additionally relies on heavier dependencies not required for benchmarking:
 
 - Pip dependencies: `python -m pip install -e .[scantools]`
 - [raybender](https://github.com/cvg/raybender) for raytracing
 - [pcdmeshing](https://github.com/cvg/pcdmeshing) for pointcloud meshing
 
-:four: Optional: if you wish to contribute, install the development tools as well:
+:four: **Optional**: if you wish to contribute, install the development tools as well:
 ```bash
 python -m pip install -e .[dev]
 ```
@@ -116,6 +120,32 @@ docker pull ghcr.io/microsoft/lamar-benchmark/scantools:latest
 docker pull ghcr.io/microsoft/lamar-benchmark/lamar:latest
 ```
 
+### Usage of docker images
+
+To use the `lamar` Docker image, you can follow these steps:
+
+1. **Set the `DATA_DIR` and `DOCKER_RUN` environment variables**:
+
+```bash
+export DATA_DIR=/path/to/data
+export DOCKER_RUN="docker run -it --rm --init -u $(id -u):$(id -g) -v ${DATA_DIR}:${DATA_DIR} ghcr.io/microsoft/lamar-benchmark/lamar:latest "
+```
+
+**Note**: replace `ghcr.io/microsoft/lamar-benchmark/lamar:latest` with
+`lamar:lamar` if you want to use the image you built locally.
+
+2. **Run the desired command inside the Docker container, for example**:
+
+```bash
+$DOCKER_RUN ls $DATA_DIR
+$DOCKER_RUN python pipelines/pipeline_navvis_rig.py --help
+```
+
+The `DOCKER_RUN` variable is a prefix to the command you would run if the code
+were installed locally. This ensures the command runs inside the Docker
+container. The `DATA_DIR` will be mounted as a volume representing the same
+folder on the local machine, and the user/group will match the local environment
+to avoid having the output as root.
 
 ## Benchmark
 
