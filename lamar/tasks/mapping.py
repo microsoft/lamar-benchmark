@@ -14,7 +14,6 @@ from .feature_extraction import FeatureExtraction
 from .feature_matching import FeatureMatching
 from ..utils.capture import list_images_for_session
 from ..utils.misc import same_configs, write_config
-from ..utils.lru_cache import PerKeyLockLRUCache
 
 
 logger = logging.getLogger(__name__)
