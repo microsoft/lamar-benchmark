@@ -1,6 +1,7 @@
 import logging
 from pathlib import Path
 from copy import deepcopy
+from threading import Lock
 import numpy as np
 
 import pycolmap
@@ -96,9 +97,17 @@ class Triangulation(Mapping):
         }
         # We cache the 3D points for mapping images to avoid parsing them from
         # the reconstruction each time. If we count 5K keypoints per image, this
-        # leads to ~80KB / image, so even for 50K mapping images, this would
-        # only be ~4GB of RAM.
+        # leads to ~160KB / image, so even for 25K mapping images, this would
+        # only be ~4GB of RAM. For very large datasets, we might want to look
+        # into a LRU cache.
         self.points3d_cache = {}
+        # We use a lock per image to make sure other threads using different 
+        # images can run in parallel. These locks block for the expensive
+        # reconstruction parsing.
+        self.image_locks = {}
+        # We use a lock for the image locks to make sure that we do not
+        # create multiple locks for the same image.
+        self.lock = Lock()
 
     def run(self, capture):
         run_capture_to_empty_colmap.run(capture, [self.session_id], self.paths.sfm_empty)
@@ -111,20 +120,7 @@ class Triangulation(Mapping):
             self.matching.paths.matches,
         )
 
-    def get_points3D(self, key, point2D_indices):
-        # TODO(WIP): This is not thread safe...
-        if key not in self.points3d_cache:
-            image = self.reconstruction.images[self.key2imageid[key]]
-            ids = []
-            xyz = []
-            for p2d in image.points2D:
-                if p2d.has_point3D():
-                    ids.append(p2d.point3D_id)
-                    xyz.append(self.reconstruction.points3D[ids[-1]].xyz)
-                else:
-                    ids.append(-1)
-                    xyz.append([np.nan, np.nan, np.nan])
-            self.points3d_cache[key] = (np.array(ids), np.array(xyz))
+    def _get_points3D_from_cache(self, key, point2D_indices):
         ids, xyz = self.points3d_cache[key]
         if len(ids) == 0:
             # Not registered.
@@ -133,6 +129,29 @@ class Triangulation(Mapping):
         return valid, xyz[point2D_indices][valid], ids[point2D_indices][valid]
 
 
+    def get_points3D(self, key, point2D_indices):
+        if key not in self.image_locks:
+            with self.lock:
+                # Key might have been added while we were waiting for the lock.
+                if key not in self.image_locks:
+                    self.image_locks[key] = Lock()
+        if key not in self.points3d_cache:
+            with self.image_locks[key]:              
+                # Key might have been added while we were waiting for the lock.
+                if key not in self.points3d_cache:
+                    image = self.reconstruction.images[self.key2imageid[key]]
+                    ids = []
+                    xyz = []
+                    for p2d in image.points2D:
+                        if p2d.has_point3D():
+                            ids.append(p2d.point3D_id)
+                            xyz.append(self.reconstruction.points3D[ids[-1]].xyz)
+                        else:
+                            ids.append(-1)
+                            xyz.append([np.nan, np.nan, np.nan])
+                    self.points3d_cache[key] = (np.array(ids), np.array(xyz))
+        return self._get_points3D_from_cache(key, point2D_indices)
+       
 
 class MeshLifting(Mapping):
     method = {
