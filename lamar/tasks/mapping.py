@@ -14,6 +14,7 @@ from .feature_extraction import FeatureExtraction
 from .feature_matching import FeatureMatching
 from ..utils.capture import list_images_for_session
 from ..utils.misc import same_configs, write_config
+from ..utils.lru_cache import PerKeyLockLRUCache
 
 
 logger = logging.getLogger(__name__)
@@ -94,6 +95,10 @@ class Triangulation(Mapping):
             self.name2key[image.name]: image.image_id
             for image in self.reconstruction.images.values()
         }
+        # We cache the 3D points for mapping images to avoid parsing them from
+        # the reconstruction each time. If we count 5K keypoints per image, this
+        # leads to ~80KB / image, so even for 50K mapping images, this would
+        # only be ~4GB of RAM.
         self.points3d_cache = {}
 
     def run(self, capture):
@@ -108,7 +113,7 @@ class Triangulation(Mapping):
         )
 
     def get_points3D(self, key, point2D_indices):
-        # TODO(WIP): This cache should have a size limit, maybe LRU.
+        # TODO(WIP): This is not thread safe...
         if key not in self.points3d_cache:
             image = self.reconstruction.images[self.key2imageid[key]]
             ids = []
