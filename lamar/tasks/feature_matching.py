@@ -42,15 +42,6 @@ class FeatureMatching:
                 },
             },
         },
-        'loftr': {
-            'name': 'loftr',
-            'hloc': {
-                'model': {
-                    'name': 'loftr',
-                    'features': 'dumbpoint',
-                },
-            },
-        },
         'mnn': {
             'name': 'mnn',
             'hloc': {

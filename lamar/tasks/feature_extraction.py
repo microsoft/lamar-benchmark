@@ -34,18 +34,6 @@ class FeatureExtraction:
                 },
             },
         },
-        'dumbpoint': {
-            'name': 'dumbpoint',
-            'hloc': {
-                'model': {
-                    'name': 'dumbpoint',
-                },
-                'preprocessing': {
-                    'grayscale': True,
-                    'resize_max': 1024,
-                },
-            },
-        },
         'r2d2': {
             'name': 'r2d2',
             'hloc': {

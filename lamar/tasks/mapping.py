@@ -108,6 +108,7 @@ class Triangulation(Mapping):
         )
 
     def get_points3D(self, key, point2D_indices):
+        # TODO(WIP): This cache should have a size limit, maybe LRU.
         if key not in self.points3d_cache:
             image = self.reconstruction.images[self.key2imageid[key]]
             ids = []
