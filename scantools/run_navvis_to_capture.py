@@ -13,7 +13,7 @@ from .scanners.navvis.camera_tiles import TileFormat
 from .capture import (
         Capture, Session, Sensors, create_sensor, Trajectories, Rigs, Pose,
         RecordsCamera, RecordsLidar, RecordBluetooth, RecordBluetoothSignal,
-        RecordsBluetooth, RecordWifi, RecordWifiSignal, RecordsWifi)
+        RecordsBluetooth, RecordWifi, RecordWifiSignal, RecordsWifi, GlobalAlignment)
 from .utils.misc import add_bool_arg
 from .utils.io import read_image, write_image
 
@@ -213,11 +213,15 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
         freq_khz = measurement.center_channel_freq_khz
         rssi_dbm = measurement.signal_strength_dbm
         time_offset_us = int(measurement.time_offset_ms) / 1_000
+        ssid = measurement.ssid
         if (timestamp_us, sensor_id) not in wifi_signals:
             wifi_signals[timestamp_us, sensor_id] = RecordWifi()
         wifi_signals[timestamp_us, sensor_id][mac_addr] = RecordWifiSignal(
-            frequency_khz=freq_khz, rssi_dbm=rssi_dbm, scan_time_start_us=(timestamp_us - time_offset_us)
+            frequency_khz=freq_khz, rssi_dbm=rssi_dbm, name=ssid,
+            scan_time_start_us=(timestamp_us - time_offset_us)
         )
+    sorted_wifi_signals = sorted(wifi_signals.items(), key=lambda item: item[0])
+    wifi_signals = RecordsWifi(sorted_wifi_signals)
 
     bluetooth_signals = RecordsBluetooth()
     sensor_id = 'bt_sensor'
@@ -230,10 +234,24 @@ def run(input_path: Path, capture: Capture, tiles_format: str, session_id: Optio
         if (timestamp_us, sensor_id) not in bluetooth_signals:
             bluetooth_signals[timestamp_us, sensor_id] = RecordBluetooth()
         bluetooth_signals[timestamp_us, sensor_id][id] = RecordBluetoothSignal(rssi_dbm=rssi_dbm)
+    sorted_bluetooth_signals = sorted(bluetooth_signals.items(), key=lambda item: item[0])
+    bluetooth_signals = RecordsBluetooth(sorted_bluetooth_signals)
+
+    # Read the NavVis origin.json file if present and use proc.GlobalAlignment to save it.
+    navvis_origin = None
+    if nv.load_origin():
+        origin_qvec, origin_tvec, origin_crs = nv.get_origin()
+        navvis_origin = GlobalAlignment()
+        navvis_origin[origin_crs, navvis_origin.no_ref] = (
+            Pose(r=origin_qvec, t=origin_tvec),
+            [],
+        )
+        logger.info("Loaded NavVis origin.json")
 
     session = Session(
         sensors=sensors, rigs=rigs, trajectories=trajectory,
-        images=images, pointclouds=pointclouds, wifi=wifi_signals, bt=bluetooth_signals)
+        images=images, pointclouds=pointclouds, wifi=wifi_signals, bt=bluetooth_signals, 
+        origins=navvis_origin)
     capture.sessions[session_id] = session
     capture.save(capture.path, session_ids=[session_id])
 

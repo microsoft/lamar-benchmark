@@ -404,3 +404,4 @@ def test_get_image_filename(m6_object, m6_testdata):
 
     res_image_filename = m6_object.get_image_filename(test_frame.id, test_frame.pose.camera_id)
     assert res_image_filename == exp_image_filename
+

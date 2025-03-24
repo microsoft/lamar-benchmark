@@ -30,16 +30,12 @@ RUN apt-get update && \
         python3-setuptools
 
 # Build raybender.
-COPY docker/scripts/build_raybender.sh /tmp/
+COPY scripts/build_raybender.sh /tmp/
 RUN bash /tmp/build_raybender.sh && rm /tmp/build_raybender.sh
 
 # Build pcdmeshing.
-COPY docker/scripts/build_pcdmeshing.sh /tmp/
+COPY scripts/build_pcdmeshing.sh /tmp/
 RUN bash /tmp/build_pcdmeshing.sh && rm /tmp/build_pcdmeshing.sh
-
-# Build hloc.
-COPY docker/scripts/build_hloc.sh /tmp/
-RUN bash /tmp/build_hloc.sh && rm /tmp/build_hloc.sh
 
 #
 # Scantools stage.
@@ -64,8 +60,7 @@ RUN rm -rfv /tmp/*
 
 # Install pcdmeshing.
 COPY --from=builder /pcdmeshing/dist-wheel /tmp/dist-wheel
-RUN sudo apt-get install -y --no-install-recommends --no-install-suggests \
-        libmpfrc++-dev
+RUN apt-get install -y --no-install-recommends --no-install-suggests libmpfrc++-dev
 RUN cd /tmp && whl_path=$(cat dist-wheel/whl_path.txt) && python3 -m pip install $whl_path
 RUN rm -rfv /tmp/*
 
@@ -80,48 +75,33 @@ RUN python3 -m pip install --no-deps \
         pytijo==0.0.2 \
         pyzbar-upright==0.1.8 \
         rawpy==0.19.1 \
-        scipy==1.11.4
+        scipy==1.11.4 \
+        numpy==1.26.4 \
+        pillow==10.3.0
+
 RUN cd lamar && python3 -m pip install -e .[scantools] --no-deps
 WORKDIR /lamar
 
 #
 # pyceres-builder stage.
 #
-FROM mcr.microsoft.com/mirror/docker/library/ubuntu:${UBUNTU_VERSION} AS pyceres-builder
+FROM common AS pyceres-builder
 
-# Prepare and empty machine for building.
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends --no-install-suggests \
-        git \
-        cmake \
-        ninja-build \
-        build-essential \
-        libeigen3-dev \
-        libgoogle-glog-dev \
-        libgflags-dev \
-        libgtest-dev \
-        libatlas-base-dev \
-        libsuitesparse-dev \
-        python-is-python3 \
-        python3-minimal \
-        python3-pip \
-        python3-dev \
-        python3-setuptools
+# Copy scripts
+COPY scripts/* /tmp/
 
-# Install Ceres.
-RUN apt-get install -y --no-install-recommends --no-install-suggests wget && \
-    wget "http://ceres-solver.org/ceres-solver-2.1.0.tar.gz" && \
-    tar zxf ceres-solver-2.1.0.tar.gz && \
-    mkdir ceres-build && \
-    cd ceres-build && \
-    cmake ../ceres-solver-2.1.0 -GNinja \
-        -DCMAKE_INSTALL_PREFIX=/ceres_installed && \
-    ninja install
-RUN cp -r /ceres_installed/* /usr/local/
+# Install Ceres Solver.
+COPY scripts/install_ceres_solver.sh /tmp/
+RUN bash /tmp/install_ceres_solver.sh
+
+# Install Colmap.
+COPY scripts/install_colmap.sh /tmp/
+RUN bash /tmp/install_colmap.sh
 
 # Build pyceres.
-RUN git clone --depth 1 --recursive https://github.com/cvg/pyceres
+RUN git clone --depth 1 -b v1.0 --recursive https://github.com/cvg/pyceres
 RUN python3 -m pip install --upgrade pip
+RUN apt-get install -y --no-install-recommends --no-install-suggests python3-dev
 RUN cd pyceres && \
     pip wheel . --no-deps -w dist-wheel -vv && \
     whl_path=$(find dist-wheel/ -name "*.whl") && \
@@ -143,8 +123,8 @@ RUN apt-get update && \
         python3-minimal \
         python3-pip
 
-# Copy installed library in the builder stage.
-COPY --from=pyceres-builder /ceres_installed/ /usr/local/
+# Copy installed libraries in the builder stage.
+COPY --from=pyceres-builder /usr/local/ /usr/local/
 
 # Install pyceres.
 COPY --from=pyceres-builder /pyceres/dist-wheel /tmp/dist-wheel
@@ -158,20 +138,20 @@ RUN rm -rfv /tmp/*
 FROM pyceres as lamar
 
 # Install hloc.
-COPY --from=builder /hloc/dist-wheel /tmp/dist-wheel
-RUN cd /tmp && whl_path=$(cat dist-wheel/whl_path.txt) && python3 -m pip install $whl_path
-RUN rm -rfv /tmp/*
+COPY scripts/install_hloc.sh /tmp/
+RUN bash /tmp/install_hloc.sh
 
 # Note: The dependencies listed in pyproject.toml also include pyceres, already
 # installed in previous Docker stages. Attempting to compile it in this stage
 # will lead to failure due to missing necessary development dependencies.
-# Therefore, we replicate the dependencies here, excluding pyceres
+# Therefore, we replicate the dependencies here, excluding pyceres.
 RUN python3 -m pip install --no-deps \
         h5py==3.10.0 \
         numpy==1.26.3 \
         torch>=1.1 \
         tqdm>=4.36.0 \
-        pycolmap==0.6.0
+        pycolmap==0.4.0 \
+        scikit-learn==1.5.2
 
 RUN cd /lamar && python3 -m pip install -e .  --no-deps
 WORKDIR /lamar
