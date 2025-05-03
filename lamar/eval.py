@@ -197,11 +197,11 @@ def run(gt_dir: Path, scene: str, query_id: str, eval_file: Path):
     rigs = load_rigs(rigs_file)
         
     T_c2w_gt = load_trajectories(gt_dir / f'{scene}_{query_id}.txt')
-    print(f'Loaded {len(T_c2w_gt)} GT poses')
     T_c2w_gt_filtered = Trajectories()
     for key in query_keys:
         T_c2w_gt_filtered[key] = T_c2w_gt[key]
     T_c2w_gt = T_c2w_gt_filtered
+    print(f'Loaded {len(T_c2w_gt)} filtered GT poses')
     T_c2w_gt = convert_poses_for_eval(T_c2w_gt, rigs)
     print(f'Converted to {len(T_c2w_gt)} GT poses for evaluation')
 
