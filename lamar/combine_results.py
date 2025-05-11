@@ -6,10 +6,10 @@ from pathlib import Path
 from . import logger
 
 def assert_valid_txt_path(path: Path):
-    """Assert that the path is valid."""
-    assert path.exists(), f"Path does not exist: {path}"
-    assert path.is_file(), f"Path is not a file: {path}"
-    assert path.suffix == ".txt", f"Expected .txt file, got {path.suffix}"
+    """Assert that the txt path is valid."""
+    assert path.exists()
+    assert path.is_file()
+    assert path.suffix == ".txt"
 
 
 if __name__ == '__main__':
