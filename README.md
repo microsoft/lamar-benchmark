@@ -190,7 +190,7 @@ This executes two steps:
 :three: __Obtain the evaluation results:__
 
 - validation queries: the script print the localization recall.
-- test queries: combine results for all locations / devices in a single zip file using `python -m lamar.combine_results --cab_phone_path poses_CAB_phone.txt [...] --output_dir ./result/"` and submit the zip to the [benchmark page](https://www.codabench.org/competitions/7918/).
+- test queries: combine results for all locations / devices in a single zip file using `python -m lamar.combine_results --cab_phone_path poses_CAB_phone.txt [...] --output_dir ./result/` and submit the zip to the [benchmark page](https://www.codabench.org/competitions/7918/).
 
 :four: __Workflow:__ the benchmarking pipeline is designed such that
 - the mapping and localization process is split into modular steps listed in [`lamar/tasks/`](./lamar/tasks/)
