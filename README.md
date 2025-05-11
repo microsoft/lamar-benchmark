@@ -190,7 +190,7 @@ This executes two steps:
 :three: __Obtain the evaluation results:__
 
 - validation queries: the script print the localization recall.
-- test queries: until the benchmark leaderboard is up and running, please send the predicted pose files to <a href="&#x6d;ailto&#58;lamar-benchmark&#x40;sympa.ethz.ch">lamar-benchmark&#x40;sympa.ethz.ch</a> :warning: we will only accept at most 2 submissions per user per week.
+- test queries: combine results for all locations / devices in a single zip file using `python -m lamar.combine_results --cab_phone_path poses_CAB_phone.txt [...] --output_dir ./result/"` and submit the zip to the [benchmark page](https://www.codabench.org/competitions/7918/).
 
 :four: __Workflow:__ the benchmarking pipeline is designed such that
 - the mapping and localization process is split into modular steps listed in [`lamar/tasks/`](./lamar/tasks/)
@@ -285,7 +285,8 @@ Like the evaluation data, the raw data is accessed through [the dataset page](ht
 - [x] Ground truthing pipeline
 - [x] iOS capture app
 - [x] Full raw data
-- [ ] Leaderboard and evaluation server
+- [x] Leaderboard and evaluation server
+- [ ] Leaderboard for sequence metrics
 - [ ] 3D dataset viewer
 
 ## BibTex citation
