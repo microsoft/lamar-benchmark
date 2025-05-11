@@ -5,6 +5,13 @@ from pathlib import Path
 
 from . import logger
 
+def assert_valid_txt_path(path: Path):
+    """Assert that the path is valid."""
+    assert path.exists(), f"Path does not exist: {path}"
+    assert path.is_file(), f"Path is not a file: {path}"
+    assert path.suffix == ".txt", f"Expected .txt file, got {path.suffix}"
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description="Combine estimated poses from multiple scenes / devices in a zip file for evaluation."
@@ -46,13 +53,20 @@ if __name__ == '__main__':
         help="File containing the HGE HoloLens estimated poses.",
     )
     parser.add_argument(
+        "--description_path",
+        type=Path,
+        required=True,
+        help="Path to a text file containing description of the submission.",
+    )
+    parser.add_argument(
         "--output_dir",
         type=Path,
-        help="Output directory where the zip will be saved.",
         required=True,
+        help="Output directory where the zip will be saved.",
     )
     args = parser.parse_args().__dict__
     output_dir = args.pop("output_dir")
+    description_path = args.pop("description_path")
 
     # Generate timestamp for the zip file name.
     timestamp = datetime.datetime.now().strftime("%Y.%m.%d_%H.%M.%S")
@@ -62,6 +76,10 @@ if __name__ == '__main__':
     logger.info(f"Creating zip file at {zip_filename}")
     output_dir.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(zip_filename, "w", zipfile.ZIP_DEFLATED) as zipf:
+        # Add the description file to the zip.
+        logger.info(f"Adding description file from {description_path} to zip")
+        assert_valid_txt_path(description_path)
+        zipf.write(description_path, arcname="description.txt")
         for name, path in args.items():
             split = name.split("_")
             assert len(split) == 3
@@ -70,9 +88,7 @@ if __name__ == '__main__':
             if path is None:
                 logger.warning(f"No path provided for [{split}], skipping...")
                 continue
-            assert path.exists()
-            assert path.is_file()
-            assert path.suffix == ".txt", f"Expected .txt file, got {path.suffix}"
             logger.info(f"Adding [{split}] file from {path} to zip")
+            assert_valid_txt_path(path)
             zipf.write(path, arcname=f"{split[0].upper()}_query_{split[1]}.txt")
     logger.info(f"Successfully created zip file at {zip_filename}")
