@@ -21,7 +21,7 @@
     <img src="assets/logos.svg" alt="Logo" height="40">
 </p>
   <h2 align="center">ECCV 2022</h2>
-  <h3 align="center"><a href="https://lamar.ethz.ch/">Project Page</a> | <a href = "https://www.codabench.org/competitions/7918">Benchmark Page</a> | <a href="https://youtu.be/32XsRli2coo">Video</a></h3>
+  <h3 align="center"><a href="https://lamar.ethz.ch/">Project Page</a> | <a href="https://www.codabench.org/competitions/7918">Benchmark Page</a> | <a href="https://youtu.be/32XsRli2coo">Video</a></h3>
   <div align="center"></div>
 </p>
 <p align="center">
