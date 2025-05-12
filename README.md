@@ -189,19 +189,21 @@ This executes two steps:
 
 :three: __Obtain the evaluation results:__
 
-_Validation queries:_ the script print the localization recall.
+_Validation queries:_ the script prints the localization recall.
 
 _Test queries:_
-- Combine results for all locations / devices in a single zip file using
+1. Combine results for all locations / devices in a single zip file using
 
 ```
 python -m lamar.combine_results \
-  --cab_phone_path path/to/poses_CAB_phone.txt [...] \
+  --cab_phone_path path/to/poses_CAB_phone.txt \
+  --cab_hololens_path path/to/poses_CAB_hololens.txt \
+  [...] \
   --description path/to/description.txt \
   --output_dir ./outputs/
 ```
 
-- Submit the zip to the [benchmark page](https://www.codabench.org/competitions/7918/).
+2. Submit the zip to the [benchmark page](https://www.codabench.org/competitions/7918/).
 
 :warning: Any public entries should have a name and valid link on the leaderboard.
 The description file should contain details about the submission (i.e, what methods, what thresholds / hyperparameters, ...).
