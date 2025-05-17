@@ -21,7 +21,7 @@
     <img src="assets/logos.svg" alt="Logo" height="40">
 </p>
   <h2 align="center">ECCV 2022</h2>
-  <h3 align="center"><a href="https://lamar.ethz.ch/">Project Page</a> | <a href="https://youtu.be/32XsRli2coo">Video</a></h3>
+  <h3 align="center"><a href="https://lamar.ethz.ch/">Project Page</a> | <a href="https://www.codabench.org/competitions/7918">Benchmark Page</a> | <a href="https://youtu.be/32XsRli2coo">Video</a></h3>
   <div align="center"></div>
 </p>
 <p align="center">
@@ -189,8 +189,36 @@ This executes two steps:
 
 :three: __Obtain the evaluation results:__
 
-- validation queries: the script print the localization recall.
-- test queries: until the benchmark leaderboard is up and running, please send the predicted pose files to <a href="&#x6d;ailto&#58;lamar-benchmark&#x40;sympa.ethz.ch">lamar-benchmark&#x40;sympa.ethz.ch</a> :warning: we will only accept at most 2 submissions per user per week.
+_Validation queries:_ the script prints the localization recall.
+
+_Test queries:_
+1. Combine results for all locations / devices in a single zip file using
+
+```
+python -m lamar.combine_results \
+  --cab_phone_path path/to/poses_CAB_phone.txt \
+  --cab_hololens_path path/to/poses_CAB_hololens.txt \
+  [...] \
+  --description path/to/description.txt \
+  --output_dir ./outputs/
+```
+
+2. Submit the zip to the [benchmark page](https://www.codabench.org/competitions/7918/).
+
+:warning: Any public entries should have a name and valid link on the leaderboard.
+The description file should contain details about the submission (i.e, what methods, what thresholds / hyperparameters, ...).
+Sample description file:
+
+```
+Retrieval Features: Fusion (NetVLAD, APGeM);
+Local Features: SuperPoint;
+Feature Matching: LightGlue;
+Description:
+Default lamar-benchmark parameters for extractors, matchers, and pipeline.
+Retrieved top 10 images for both mapping and localization with frustum filtering for mapping.
+PnP error multiplier 3 for single-image, 1 for rigs.
+
+```
 
 :four: __Workflow:__ the benchmarking pipeline is designed such that
 - the mapping and localization process is split into modular steps listed in [`lamar/tasks/`](./lamar/tasks/)
@@ -285,7 +313,8 @@ Like the evaluation data, the raw data is accessed through [the dataset page](ht
 - [x] Ground truthing pipeline
 - [x] iOS capture app
 - [x] Full raw data
-- [ ] Leaderboard and evaluation server
+- [x] Leaderboard and evaluation server
+- [ ] Leaderboard for sequence metrics
 - [ ] 3D dataset viewer
 
 ## BibTex citation
