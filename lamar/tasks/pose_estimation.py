@@ -31,7 +31,7 @@ class PoseEstimationPaths:
             root = override_workdir_root
         self.workdir = (
             root / 'pose_estimation' / query_id / ref_id
-            / config['features']['name'] / config['matches']['name']
+            / config['features']['name'] / config['matches']['matching']['name']
             / config['pairs']['name'] / config['mapping']['name'] / config['name']
         )
         self.poses = self.workdir / 'poses.txt'
@@ -51,7 +51,7 @@ class PoseEstimation:
     method2class = {}
     method = None
     evaluation = {
-        'Rt_thresholds': [(1, 0.1), (5, 1.)],
+        'Rt_thresholds': [(5, 0.5)],
     }
 
     def __init_subclass__(cls):
@@ -71,7 +71,7 @@ class PoseEstimation:
                  matching: FeatureMatching,
                  mapping: Mapping,
                  query_keys: list = None,
-                 parallel: bool = True,
+                 parallel: bool = False,
                  return_covariance: bool = False,
                  override_workdir_root: Path = None):
         if extraction.config['name'] != mapping.extraction.config['name']:

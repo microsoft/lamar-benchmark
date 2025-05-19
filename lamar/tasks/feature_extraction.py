@@ -20,6 +20,9 @@ class FeatureExtractionPaths:
 
 class FeatureExtraction:
     methods = {
+        'anypoint': {
+            'name': 'anypoint'
+        },
         'superpoint': {
             'name': 'superpoint',
             'hloc': {
@@ -119,14 +122,17 @@ class FeatureExtraction:
         logger.info('Extraction local features %s for session %s.', config['name'], session_id)
         _, names, image_root = list_images_for_session(capture, session_id, query_keys)
         names = np.unique(names)
-        extract_features.main(
-            config['hloc'],
-            image_root,
-            feature_path=self.paths.features,
-            image_list=names,
-            as_half=True,
-            overwrite=overwrite,
-        )
+        self.image_root = image_root
+        self.names = names
+        if 'hloc' in config:
+            extract_features.main(
+                config['hloc'],
+                image_root,
+                feature_path=self.paths.features,
+                image_list=names,
+                as_half=True,
+                overwrite=overwrite,
+            )
 
         write_config(config, self.paths.config)
 
@@ -147,4 +153,11 @@ class RetrievalFeatureExtraction(FeatureExtraction):
                 'preprocessing': {'resize_max': 640},
             }
         },
+        'salad': {
+            'name': 'salad',
+            'hloc': {
+                'model': {'name': 'salad'},
+                'preprocessing': {'resize_max': 640},
+            }
+        }
     }
