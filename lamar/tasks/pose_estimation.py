@@ -51,7 +51,7 @@ class PoseEstimation:
     method2class = {}
     method = None
     evaluation = {
-        'Rt_thresholds': [(1, 0.1), (5, 1.)],
+        'Rt_thresholds': [(1, .1), (5, .5), (5, 1), (10, .25), (10, .5), (10, 1), (10, 2.5), (10, 5), (10, 10)],
     }
 
     def __init_subclass__(cls):
@@ -71,7 +71,7 @@ class PoseEstimation:
                  matching: FeatureMatching,
                  mapping: Mapping,
                  query_keys: list = None,
-                 parallel: bool = True,
+                 parallel: bool = False,
                  return_covariance: bool = False,
                  override_workdir_root: Path = None):
         if extraction.config['name'] != mapping.extraction.config['name']:
