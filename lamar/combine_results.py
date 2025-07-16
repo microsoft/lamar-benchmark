@@ -75,6 +75,7 @@ if __name__ == "__main__":
     args = parser.parse_args().__dict__
     output_dir = args.pop("output_dir")
     description_path = args.pop("description_path")
+    assert len(args) == len(LOCATIONS) * len(DEVICES)
 
     combine_results(
         description_path=description_path,
