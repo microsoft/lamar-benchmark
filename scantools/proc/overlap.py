@@ -30,7 +30,7 @@ def overlay(overlap: np.ndarray, image: np.ndarray):
 
 
 class OverlapTracer:
-    def __init__(self, renderer: Renderer, stride: int = 1, num_rays: Optional[float] = None):
+    def __init__(self, renderer: Renderer, stride: int = 1, num_rays: Optional[int] = None):
         self.renderer = renderer
         self.stride = stride
         self.num_rays = num_rays
@@ -100,7 +100,7 @@ class OverlapTracer:
         if is_self:
             keys_r, session_r, poses_r = keys_q, session_q, poses_q
 
-        overlap_matrix = np.full((len(keys_q), len(keys_r)), -1, float)
+        overlap_matrix = np.full((len(keys_q), len(keys_r)), -1, dtype=np.float16)
         overlap_matrix[discard] = 0
 
         # cache the image poses as they might be compositions of rig poses
@@ -195,8 +195,8 @@ def compute_overlaps_for_sequence(capture: Capture, id_q: str, id_ref: str,
         valid_image_indices_list = [np.array(list(range(len(keys_ref))))]
         selected_keys_ref_list = [keys_ref]
 
-    ov_q2r = np.zeros([len(keys_q), len(keys_ref)])
-    ov_r2q = np.zeros([len(keys_ref), len(keys_q)])
+    ov_q2r = np.zeros([len(keys_q), len(keys_ref)], dtype=np.float16)
+    ov_r2q = np.zeros([len(keys_ref), len(keys_q)], dtype=np.float16)
     for sub_info in zip(sub_mesh_id_list, valid_image_indices_list, selected_keys_ref_list):
         sub_mesh_id, valid_image_indices, selected_keys_ref = sub_info
         sub_mesh_path = capture.proc_path(id_ref) / session_ref.proc.meshes[sub_mesh_id]
