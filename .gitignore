@@ -59,6 +59,9 @@ coverage.xml
 local_settings.py
 db.sqlite3
 
+# NavVis test data.
+scantools/tests/test_data/*
+
 # Flask stuff:
 instance/
 .webassets-cache
