@@ -17,6 +17,7 @@ from ..utils.misc import same_configs, write_config
 
 
 logger = logging.getLogger(__name__)
+invalid_point3d_id = pycolmap.Point2D().point3D_id
 
 
 class MappingPaths:
@@ -94,6 +95,10 @@ class Triangulation(Mapping):
             self.name2key[image.name]: image.image_id
             for image in self.reconstruction.images.values()
         }
+        self.imageid_to_point3dids = {
+            image_id: np.array([p.point3D_id for p in image.points2D], np.uint64)
+            for image_id, image in self.reconstruction.images.items()
+        }
 
     def run(self, capture):
         run_capture_to_empty_colmap.run(capture, [self.session_id], self.paths.sfm_empty)
@@ -107,18 +112,20 @@ class Triangulation(Mapping):
         )
 
     def get_points3D(self, key, point2D_indices):
-        image = self.reconstruction.images[self.key2imageid[key]]
-        valid = []
-        xyz = []
-        ids = []
-        if len(image.points2D) > 0:
-            for idx in point2D_indices:
-                p = image.points2D[idx]
-                valid.append(p.has_point3D())
-                if valid[-1]:
-                    ids.append(p.point3D_id)
-                    xyz.append(self.reconstruction.points3D[ids[-1]].xyz)
-        return np.array(valid, bool), xyz, ids
+        image_id = self.key2imageid[key]
+        all_ids = self.imageid_to_point3dids[image_id]
+        if len(all_ids) > 0:
+            ids = all_ids[point2D_indices]
+            valid = ids != invalid_point3d_id
+            ids = ids[valid]
+        else:
+            valid = np.empty(0, bool)
+            ids = np.empty(0, int)
+        if len(ids) > 0:
+            xyz = np.stack([self.reconstruction.points3D[i].xyz for i in ids])
+        else:
+            xyz = np.empty((0, 3), float)
+        return valid, xyz, ids
 
 
 class MeshLifting(Mapping):

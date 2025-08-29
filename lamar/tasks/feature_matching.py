@@ -33,6 +33,15 @@ class FeatureMatching:
                 },
             },
         },
+        'lightglue': {
+            'name': 'lightglue',
+            'hloc': {
+                'model': {
+                    'name': 'lightglue',
+                    'features': 'superpoint',
+                },
+            },
+        },
         'mnn': {
             'name': 'mnn',
             'hloc': {
