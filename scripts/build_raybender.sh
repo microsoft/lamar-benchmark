@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 
-root_folder=$(realpath $(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/..)
-source ${root_folder}/scripts/load_env.sh
+PS4='\033[0;32m$(date "+%Y%m%d %H:%M:%S.%N") $BASH_SOURCE:$LINENO]\033[0m '
+set -euxo pipefail
 
 # Clone raybender.
 git clone --recursive https://github.com/cvg/raybender.git --depth=1
 cd raybender
+
+cd pybind11
+git pull
+cd ..
 
 # Install Embree following the official instructions and set the environmental
 # variable embree_DIR to point to embree-config.cmake. On Linux, this can be

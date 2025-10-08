@@ -1,5 +1,4 @@
-ARG UBUNTU_VERSION=22.04
-FROM mcr.microsoft.com/mirror/docker/library/ubuntu:${UBUNTU_VERSION} AS common
+FROM runpod/pytorch:1.0.1-cu1281-torch280-ubuntu2404 AS common
 
 # Minimal toolings.
 RUN apt-get update && \
@@ -110,7 +109,7 @@ RUN cd pyceres && \
 #
 # pyceres stage.
 #
-FROM scantools as pyceres
+FROM scantools AS pyceres
 
 # Install minimal runtime dependencies.
 RUN apt-get update && \
@@ -135,7 +134,7 @@ RUN rm -rfv /tmp/*
 #
 # lamar stage.
 #
-FROM pyceres as lamar
+FROM pyceres AS lamar
 
 # Install hloc.
 COPY scripts/install_hloc.sh /tmp/

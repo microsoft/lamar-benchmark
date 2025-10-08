@@ -24,5 +24,5 @@ apt-get install -y --no-install-recommends --no-install-suggests \
 # Installing COLMAP version 3.8
 git clone --recursive -b 3.8 https://github.com/colmap/colmap colmap_v3.8 --depth=1
 cd colmap_v3.8
-cmake -S . -B build -DCMAKE_CUDA_ARCHITECTURES=all
+cmake -S . -B build -DCUDA_ENABLED=False
 cmake --build build --target install -- -j$(nproc)

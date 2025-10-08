@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-root_folder=$(realpath $(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/..)
-source ${root_folder}/scripts/load_env.sh
+PS4='\033[0;32m$(date "+%Y%m%d %H:%M:%S.%N") $BASH_SOURCE:$LINENO]\033[0m '
+set -euxo pipefail
 
 apt-get install -y --no-install-recommends --no-install-suggests \
     cmake \
@@ -9,7 +9,6 @@ apt-get install -y --no-install-recommends --no-install-suggests \
     libgflags-dev \
     libatlas-base-dev \
     libeigen3-dev \
-    libsuitesparse-dev \
     build-essential
 
 git clone -b 2.1.0 https://github.com/ceres-solver/ceres-solver.git ceres-solver-v2.1.0 --depth=1
