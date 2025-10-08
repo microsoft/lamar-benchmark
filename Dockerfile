@@ -1,5 +1,10 @@
 FROM runpod/pytorch:1.0.1-cu1281-torch280-ubuntu2404 AS common
 
+# To avoid compiler segfault when building the image on ARM.
+ENV CFLAGS="-fno-lto"
+ENV CXXFLAGS="-fno-lto"
+ENV LDFLAGS="-fno-lto"
+
 # Minimal toolings.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --no-install-suggests \
@@ -54,21 +59,21 @@ RUN apt-get update && \
 # Install raybender.
 COPY --from=builder /raybender/embree-3.12.2/lib /raybender/embree-3.12.2/lib
 COPY --from=builder /raybender/dist-wheel /tmp/dist-wheel
-RUN cd /tmp && whl_path=$(cat dist-wheel/whl_path.txt) && python3 -m pip install $whl_path
+RUN cd /tmp && whl_path=$(cat dist-wheel/whl_path.txt) && python3 -m pip install --ignore-installed $whl_path
 RUN rm -rfv /tmp/*
 
 # Install pcdmeshing.
 COPY --from=builder /pcdmeshing/dist-wheel /tmp/dist-wheel
 RUN apt-get install -y --no-install-recommends --no-install-suggests libmpfrc++-dev
-RUN cd /tmp && whl_path=$(cat dist-wheel/whl_path.txt) && python3 -m pip install $whl_path
+RUN cd /tmp && whl_path=$(cat dist-wheel/whl_path.txt) && python3 -m pip install --ignore-installed $whl_path
 RUN rm -rfv /tmp/*
 
-RUN python3 -m pip install --no-deps \
+RUN python3 -m pip install --ignore-installed --no-deps \
         astral==3.2 \
         beautifulsoup4==4.12.2 \
-        lxml==4.9.2 \
+        lxml==5.3.0 \
         matplotlib \
-        open3d==0.18.0 \
+        open3d==0.19.0 \
         opencv-python==4.7.0.72 \
         plyfile==1.0.3 \
         pytijo==0.0.2 \
@@ -101,7 +106,19 @@ RUN bash /tmp/install_colmap.sh
 RUN git clone --depth 1 -b v1.0 --recursive https://github.com/cvg/pyceres
 RUN python3 -m pip install --upgrade pip
 RUN apt-get install -y --no-install-recommends --no-install-suggests python3-dev
+RUN cd pyceres/pybind11 && \
+    git fetch --tags && \
+    git checkout v2.13.6
 RUN cd pyceres && \
+    pip wheel . --no-deps -w dist-wheel -vv && \
+    whl_path=$(find dist-wheel/ -name "*.whl") && \
+    echo $whl_path >dist-wheel/whl_path.txt
+
+RUN git clone --depth=1 -b --recursive v0.4.0 https://github.com/colmap/pycolmap pycolmap
+RUN cd pycolmap/pybind11 && \
+    git fetch --tags && \
+    git checkout v2.13.6
+RUN cd pycolmap && \
     pip wheel . --no-deps -w dist-wheel -vv && \
     whl_path=$(find dist-wheel/ -name "*.whl") && \
     echo $whl_path >dist-wheel/whl_path.txt
@@ -111,22 +128,17 @@ RUN cd pyceres && \
 #
 FROM scantools AS pyceres
 
-# Install minimal runtime dependencies.
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends --no-install-suggests \
-        libgoogle-glog0v5 \
-        libspqr2 \
-        libcxsparse3 \
-        libatlas3-base \
-        python-is-python3 \
-        python3-minimal \
-        python3-pip
-
 # Copy installed libraries in the builder stage.
 COPY --from=pyceres-builder /usr/local/ /usr/local/
 
 # Install pyceres.
 COPY --from=pyceres-builder /pyceres/dist-wheel /tmp/dist-wheel
+RUN pip install --upgrade pip
+RUN cd /tmp && whl_path=$(cat dist-wheel/whl_path.txt) && pip install $whl_path
+RUN rm -rfv /tmp/*
+
+# Install pycolmap.
+COPY --from=pyceres-builder /pycolmap/dist-wheel /tmp/dist-wheel
 RUN pip install --upgrade pip
 RUN cd /tmp && whl_path=$(cat dist-wheel/whl_path.txt) && pip install $whl_path
 RUN rm -rfv /tmp/*
@@ -149,7 +161,6 @@ RUN python3 -m pip install --no-deps \
         numpy==1.26.3 \
         torch>=1.1 \
         tqdm>=4.36.0 \
-        pycolmap==0.4.0 \
         scikit-learn==1.5.2
 
 RUN cd /lamar && python3 -m pip install -e .  --no-deps
