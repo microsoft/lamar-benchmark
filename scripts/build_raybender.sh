@@ -8,7 +8,8 @@ git clone --recursive https://github.com/cvg/raybender.git --depth=1
 cd raybender
 
 cd pybind11
-git pull
+git fetch --tags
+git checkout v2.13.6
 cd ..
 
 # Install Embree following the official instructions and set the environmental
