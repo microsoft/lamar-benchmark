@@ -1,9 +1,9 @@
 FROM runpod/pytorch:1.0.1-cu1281-torch280-ubuntu2404 AS common
 
 # To avoid compiler segfault when building the image on ARM.
-ENV CFLAGS="-fno-lto"
-ENV CXXFLAGS="-fno-lto"
-ENV LDFLAGS="-fno-lto"
+# ENV CFLAGS="-fno-lto"
+# ENV CXXFLAGS="-fno-lto"
+# ENV LDFLAGS="-fno-lto"
 
 # Minimal toolings.
 RUN apt-get update && \
