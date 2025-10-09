@@ -114,7 +114,7 @@ RUN cd pyceres && \
     whl_path=$(find dist-wheel/ -name "*.whl") && \
     echo $whl_path >dist-wheel/whl_path.txt
 
-RUN git clone --depth=1 -b --recursive v0.4.0 https://github.com/colmap/pycolmap pycolmap
+RUN git clone --depth=1 -b v0.4.0 --recursive https://github.com/colmap/pycolmap pycolmap
 RUN cd pycolmap/pybind11 && \
     git fetch --tags && \
     git checkout v2.13.6
