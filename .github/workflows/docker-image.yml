@@ -27,6 +27,7 @@ jobs:
       - name: Build and push Scantools Docker image
         run: |
           DATE=$(date +%Y-%m-%d)
+          docker system prune -a --volumes --force
           docker build . --tag ghcr.io/microsoft/lamar-benchmark/scantools:$DATE --target scantools
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             docker tag ghcr.io/microsoft/lamar-benchmark/scantools:$DATE \
@@ -38,6 +39,7 @@ jobs:
       - name: Build and push Lamar Docker image
         run: |
           DATE=$(date +%Y-%m-%d)
+          docker system prune -a --volumes --force
           docker build . --tag ghcr.io/microsoft/lamar-benchmark/lamar:$DATE --target lamar
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             docker tag ghcr.io/microsoft/lamar-benchmark/lamar:$DATE \
