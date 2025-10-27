@@ -23,7 +23,6 @@ ADD . /lamar
 #
 # Builder stage.
 #
-FROM common AS builder
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --no-install-suggests \
@@ -35,16 +34,15 @@ RUN apt-get update && \
 
 # Build raybender.
 COPY scripts/build_raybender.sh /tmp/
-RUN bash /tmp/build_raybender.sh && rm /tmp/build_raybender.sh
+RUN cd / && bash /tmp/build_raybender.sh && rm /tmp/build_raybender.sh
 
 # Build pcdmeshing.
 COPY scripts/build_pcdmeshing.sh /tmp/
-RUN bash /tmp/build_pcdmeshing.sh && rm /tmp/build_pcdmeshing.sh
+RUN cd / && bash /tmp/build_pcdmeshing.sh && rm /tmp/build_pcdmeshing.sh
 
 #
 # Scantools stage.
 #
-FROM common AS scantools
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --no-install-suggests \
@@ -57,50 +55,31 @@ RUN apt-get update && \
         libzbar0
 
 # Install raybender.
-COPY --from=builder /raybender/embree-3.12.2/lib /raybender/embree-3.12.2/lib
-COPY --from=builder /raybender/dist-wheel /tmp/dist-wheel
+# RUN cp -r /raybender/embree-3.12.2/lib /raybender/embree-3.12.2/lib
+RUN cp -r /raybender/dist-wheel /tmp/dist-wheel
 RUN cd /tmp && whl_path=$(cat dist-wheel/whl_path.txt) && python3 -m pip install --ignore-installed $whl_path
 RUN rm -rfv /tmp/*
 
 # Install pcdmeshing.
-COPY --from=builder /pcdmeshing/dist-wheel /tmp/dist-wheel
+RUN cp -r /pcdmeshing/dist-wheel /tmp/dist-wheel
 RUN apt-get install -y --no-install-recommends --no-install-suggests libmpfrc++-dev
 RUN cd /tmp && whl_path=$(cat dist-wheel/whl_path.txt) && python3 -m pip install --ignore-installed $whl_path
 RUN rm -rfv /tmp/*
 
-RUN python3 -m pip install --ignore-installed --no-deps \
-        astral==3.2 \
-        beautifulsoup4==4.12.2 \
-        lxml==5.3.0 \
-        matplotlib \
-        open3d==0.19.0 \
-        opencv-python==4.7.0.72 \
-        plyfile==1.0.3 \
-        pytijo==0.0.2 \
-        pyzbar-upright==0.1.8 \
-        rawpy==0.19.1 \
-        scipy==1.11.4 \
-        numpy==1.26.4 \
-        pillow==10.3.0
-
-RUN cd lamar && python3 -m pip install -e .[scantools] --no-deps
-WORKDIR /lamar
-
 #
 # pyceres-builder stage.
 #
-FROM common AS pyceres-builder
 
 # Copy scripts
 COPY scripts/* /tmp/
 
 # Install Ceres Solver.
 COPY scripts/install_ceres_solver.sh /tmp/
-RUN bash /tmp/install_ceres_solver.sh
+RUN cd / && bash /tmp/install_ceres_solver.sh
 
 # Install Colmap.
 COPY scripts/install_colmap.sh /tmp/
-RUN bash /tmp/install_colmap.sh
+RUN cd / && bash /tmp/install_colmap.sh
 
 # Build pyceres.
 RUN git clone --depth 1 -b v1.0 --recursive https://github.com/cvg/pyceres
@@ -126,19 +105,18 @@ RUN cd pycolmap && \
 #
 # pyceres stage.
 #
-FROM scantools AS pyceres
 
 # Copy installed libraries in the builder stage.
-COPY --from=pyceres-builder /usr/local/ /usr/local/
+# COPY --from=pyceres-builder /usr/local/ /usr/local/
 
 # Install pyceres.
-COPY --from=pyceres-builder /pyceres/dist-wheel /tmp/dist-wheel
+RUN cp -r /pyceres/dist-wheel /tmp/dist-wheel
 RUN pip install --upgrade pip
 RUN cd /tmp && whl_path=$(cat dist-wheel/whl_path.txt) && pip install $whl_path
 RUN rm -rfv /tmp/*
 
 # Install pycolmap.
-COPY --from=pyceres-builder /pycolmap/dist-wheel /tmp/dist-wheel
+RUN cp -r /pycolmap/dist-wheel /tmp/dist-wheel
 RUN pip install --upgrade pip
 RUN cd /tmp && whl_path=$(cat dist-wheel/whl_path.txt) && pip install $whl_path
 RUN rm -rfv /tmp/*
@@ -146,11 +124,27 @@ RUN rm -rfv /tmp/*
 #
 # lamar stage.
 #
-FROM pyceres AS lamar
 
 # Install hloc.
 COPY scripts/install_hloc.sh /tmp/
 RUN bash /tmp/install_hloc.sh
+
+RUN python3 -m pip install --ignore-installed --no-deps \
+        astral==3.2 \
+        beautifulsoup4==4.12.2 \
+        lxml==5.3.0 \
+        matplotlib \
+        open3d==0.19.0 \
+        opencv-python==4.7.0.72 \
+        plyfile==1.0.3 \
+        pytijo==0.0.2 \
+        pyzbar-upright==0.1.8 \
+        rawpy==0.19.1 \
+        scipy==1.11.4 \
+        numpy==1.26.4 \
+        pillow==10.3.0
+
+RUN cd /lamar && python3 -m pip install -e .[scantools] --no-deps
 
 # Note: The dependencies listed in pyproject.toml also include pyceres, already
 # installed in previous Docker stages. Attempting to compile it in this stage
